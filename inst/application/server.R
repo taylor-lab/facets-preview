@@ -7,6 +7,8 @@
 #' @export server
 #' @importFrom shinyWidgets radioGroupButtons
 #' @importFrom DT datatable
+#' @import dplyr
+#' @import stringr
 function(input, output, session) {
   
   values <- reactiveValues()
@@ -37,7 +39,7 @@ function(input, output, session) {
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
     
-    manifest = unlist(str_split(input$samplesInputTxt, "\n"))
+    manifest = unlist(stringr::str_split(input$samplesInputTxt, "\n"))
     manifest_metadata <- load_samples(manifest, progress)
     values$df_data <- manifest_metadata %>% mutate(reviewed = FALSE, note = "") 
   })
