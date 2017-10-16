@@ -58,7 +58,7 @@ metadata_init <- function(sample, sample_path, progress) {
     }
     
     for( fif in 1:length(facets_run_files) ) {
-      
+      paste(facets_run, facets_run_files[fif], sep="/")
       facets_out_params = readLines(paste0(facets_run, "/", facets_run_files[fif]))
       run_type = "hisens_"
       if (grepl("_purity", facets_out_params[2])) {
@@ -120,9 +120,10 @@ metadata_init <- function(sample, sample_path, progress) {
 #' @export round_down
 round_down <- function(val_str){
   if ( is.na(val_str)) {
-    return ("NA")
+    return (NA)
   }
-  if ( grepl("^\\-?\\d*\\.?\\d*$", val_str) ) {
+
+  if ( grepl("^\\-?\\d*\\.?\\d*$", as.character(val_str)) ) {
     return (round(as.numeric(val_str), digits=2))
   } else {
     val_str

@@ -9,108 +9,137 @@
 #' @importFrom DT datatable
 #' @import dplyr
 #' @import stringr
-function(input, output, session) {
+#' @import shinyjs
+
+server <- 
+  function(input, output, session) {
   
   values <- reactiveValues()
 
-  observeEvent(input$fileInputButton, {
+  # check if /ifs is mounted
+  {
+    if (grepl("mskcc.org:/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
+      shinyjs::hideElement(id= "wellPanel_mountFail")
+    } else { shinyjs::showElement(id= "wellPanel_mountFail") }
+  }
+  
+  observeEvent(input$button_mountFailRefresh, { 
+    if (grepl("mskcc.org:/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
+      shinyjs::hideElement(id= "wellPanel_mountFail")
+    }
+  })
     
-    if ( is.null(input$fileInputTxt) || is.null(input$fileInputTxt$datapath)) {
+  observeEvent(input$button_fileInput, {
+    if ( is.null(input$fileInput_filename) || is.null(input$fileInput_filename$datapath)) {
       return(NULL)
     }
-    updateNavbarPage(session, "navbarPage1", selected = "samplesPanel")
+    updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
     
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
 
-    con <- file(input$fileInputTxt$datapath)
+    con <- file(input$fileInput_filename$datapath)
     manifest = readLines(con)
     close(con)
     manifest_metadata <- load_samples(manifest, progress)
     
     values$df_data <- manifest_metadata %>% mutate(reviewed = FALSE, note = "") 
+    
+    values$submitted_refits <- c()
   })
   
-  observeEvent(input$sampleInputButton, {
-    updateNavbarPage(session, "navbarPage1", selected = "samplesPanel")
+  observeEvent(input$button_samplesInput, {
+    updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
 
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
     
-    manifest = unlist(stringr::str_split(input$samplesInputTxt, "\n"))
+    manifest = unlist(stringr::str_split(input$textAreaInput_samplesInput, "\n"))
     manifest_metadata <- load_samples(manifest, progress)
     values$df_data <- manifest_metadata %>% mutate(reviewed = FALSE, note = "") 
+    
+    values$submitted_refits <- c()
   })
   
-  output$dtSamples <- DT::renderDataTable({
+  output$datatable_samples <- DT::renderDataTable({
     DT::datatable(values$df_data, selection=list(mode='single', selected=values$dt_sel), 
-              options = list(columnDefs = list(list(className = 'dt-center'), list(visible=FALSE, targets = c(2)))))  
+              options = list(columnDefs = list(list(className = 'dt-center'), list(visible=FALSE, targets = c(2))),
+                             pageLength = 20))  
     # hide path column
   })
 
-  observeEvent(input$dtSamples_rows_selected, {
-    updateNavbarPage(session, "navbarPage1", selected = "reviewPanel")
-    values$selected_sample = paste(unlist(values$df_data[input$dtSamples_rows_selected,1]), collapse="")
-    values$selected_sample_path = paste(unlist(values$df_data[input$dtSamples_rows_selected,2]), collapse="")
+  observeEvent(input$datatable_samples_rows_selected, {
+    updateNavbarPage(session, "navbarPage1", selected = "tabPanel_reviewFits")
+    values$selected_sample = paste(unlist(values$df_data[input$datatable_samples_rows_selected,1]), collapse="")
+    values$selected_sample_path = paste(unlist(values$df_data[input$datatable_samples_rows_selected,2]), collapse="")
     
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Loading FACETS runs for the selected sample:", value = 0)
     values$sample_runs <- metadata_init(values$selected_sample, values$selected_sample_path, progress)
     
-    output$run_params <- renderText({})
-    output$alt_bal_logR <- renderText({})
-    output$pngImage1 <- renderImage({ list(src="", width=0, height=0)})
+    output$verbatimTextOutput_runParams <- renderText({})
+    output$verbatimTextOutput_altBalLogR <- renderText({})
+    output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
     
     if ( dim(values$sample_runs)[1] == 0) {
       next  # print some kind of error and exit;
     }
     
     ## bind to drop-down
-    updateSelectInput(session, "inSelect",
+    updateSelectInput(session, "selectInput_selectFit",
                       choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
                       selected = "Not selected"
     )
+    
     shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected="Hisens")
   })
   
-  observeEvent(input$inSelect, {
-    output$run_params <- renderText({})
-    output$alt_bal_logR <- renderText({})
-    output$pngImage1 <- renderImage({ list(src="", width=0, height=0)})
-    if ( input$inSelect == "Not selected") {
+  observeEvent(input$button_copyClipPath, {
+    if (input$selectInput_selectFit == "Not selected"){
+      return(NULL)
+    }    
+    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
+    clip <- pipe("pbcopy", "w")
+    write.table(paste0(selected_run$path[1], "/", selected_run$fit_name[1], "/"),
+                file=clip, 
+                quote=F, 
+                col.names=F, 
+                row.names=F)
+    close(clip)
+  })
+  
+  observeEvent(input$selectInput_selectFit, {
+    output$verbatimTextOutput_runParams <- renderText({})
+    output$verbatimTextOutput_altBalLogR <- renderText({})
+    output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
+    if ( input$selectInput_selectFit == "Not selected") {
       return (NULL)
     }
   
     # update other text options
-    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$inSelect)),]
+    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
     
-    if (0) {    ## TODO
-      output$pngImage_lr <- renderPlot({
-        load("")
-        cnlr = copy.number.log.ratio(out, fit)
-        valor = var.allele.log.odds.ratio(out, fit)
-        icnem = integer.copy.number(out, fit, method='em')
-        icncncf = integer.copy.number(out, fit, method='cncf')  
-        plot(list(cnlr, valor, icnem, icncncf))
-      })
+    if (grepl("facets_refit", input$selectInput_selectFit) ) {
+      shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected="Hisens")
+    } else {
+      shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected="Purity")
     }
-    shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected="Purity")
   })
   
   observeEvent(input$radioGroupButton_fitType, {
-    if (input$inSelect == "Not selected" || 
-        (grepl("facets_refit", input$inSelect) && input$radioGroupButton_fitType == "Purity")){
-      output$run_params <- renderText({})
-      output$alt_bal_logR <- renderText({})
-      output$pngImage1 <- renderImage({ list(src="", width=0, height=0)})
+    if (input$selectInput_selectFit == "Not selected" || 
+        (grepl("facets_refit", input$selectInput_selectFit) && input$radioGroupButton_fitType == "Purity")){
+      output$verbatimTextOutput_runParams <- renderText({})
+      output$verbatimTextOutput_altBalLogR <- renderText({})
+      output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
       return(NULL)
     }
-    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$inSelect)),]
+    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
 
-    output$run_params <- renderText({
+    output$verbatimTextOutput_runParams <- renderText({
       if (input$radioGroupButton_fitType == "Hisens") {
         paste0("Seed: ", selected_run$hisens_run_Seed[1], ", ", 
                "cval: ", selected_run$hisens_run_cval[1], ", ",
@@ -127,7 +156,26 @@ function(input, output, session) {
         )
       }
     })
-    output$pngImage1 <- renderImage({
+
+    output$datatable_cncf <- DT::renderDataTable({
+      if (input$radioGroupButton_fitType == "Hisens") {
+        run_prefix = selected_run$hisens_run_prefix[1]
+      } else {
+        run_prefix = selected_run$purity_run_prefix[1]
+      }
+      DT::datatable(data.table::fread(paste0(run_prefix, ".cncf.txt")) %>%
+                      rowwise() %>%
+                      mutate(cnlr.median = round_down(cnlr.median),
+                             mafR = round_down(mafR),
+                             cf = round_down(cf),
+                             cf.em = round_down(cf.em)) %>%
+                      select(-ID, -cnlr.median.clust, -mafR.clust, -segclust), 
+                    selection=list(mode='single'),
+                    options = list(columnDefs = list(list(className = 'dt-center')),
+                                   pageLength = 50))  
+    })
+    
+    output$imageOutput_pngImage1 <- renderImage({
       if (input$radioGroupButton_fitType == "Hisens") {
         png_filename = paste0(selected_run$hisens_run_prefix[1], ".CNCF.png")
       } else {
@@ -137,7 +185,7 @@ function(input, output, session) {
     }, 
     deleteFile = FALSE)
     
-    output$alt_bal_logR <- renderText({
+    output$verbatimTextOutput_altBalLogR <- renderText({
       if (input$radioGroupButton_fitType == "Hisens" ) {
         paste("NA")
       } else {
@@ -146,30 +194,52 @@ function(input, output, session) {
     })
   })
   
-  
-  observeEvent(input$buttonRefit, {
-    if (input$inSelect == "Not selected" || 
-        is.na(suppressWarnings(as.integer(input$newDipLogR))) || 
-        is.na(suppressWarnings(as.integer(input$newCval))))
+  observeEvent(input$button_refit, {
+    if (input$selectInput_selectFit == "Not selected" || 
+        is.na(suppressWarnings(as.integer(input$textInput_newDipLogR))) || 
+        is.na(suppressWarnings(as.integer(input$textInput_newCval))))
     {
       return(NULL)
     }
-    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$inSelect)),]
-    refit_dir <- paste0(selected_run$path[1], "/facets_refit_c", 
-                        input$newCval, "_diplogR_", input$newDipLogR)
+    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
     
-    refit_cmd <-
-      paste0("mkdir -p ", refit_dir, 
-             "; cmo_facets --lib-version 0.5.6 doFacets -c ", input$newCval, " -d ", input$newDipLogR," --seed 100 -f ", 
-             selected_run$path[1], "/countsMerged____", selected_run$tumor_sample_id[1], ".dat.gz ",
-             "-t ", selected_run$tumor_sample_id[1], " -D ", refit_dir)
-    
+    ## check if the refit has been recently submitted
+    refit_name <- paste0("/facets_refit_c", input$textInput_newCval, "_diplogR_", input$textInput_newDipLogR)
     refit_cmd_file <- 
       paste0("/ifs/res/taylorlab/bandlamc/facets_review_tool/facets_refit_watcher/facets_refit_cmd_",
-            selected_run$tumor_sample_id[1], "_c", input$newCval, "_diplogR_", input$newDipLogR, ".sh")
+             selected_run$tumor_sample_id[1], "_c", input$textInput_newCval, "_diplogR_", input$textInput_newDipLogR, ".sh")
+    
+    if (any(values$submitted_refit == refit_name)) {
+      showModal(modalDialog(
+        title = "Not submitted", paste0("Job already queued. Check logs: ", refit_cmd_file, ".*")
+      ))
+      return(NULL)
+    }
+    values$submitted_refit <- c(values$submitted_refit, refit_name)
+    
+    refit_dir <- paste0(selected_run$path[1], refit_name)
+    
+    refit_cmd <-
+      paste0("mkdir -p ", refit_dir, "; ",
+             "cmo_facets --lib-version 0.5.6 doFacets -c ", input$textInput_newCval, 
+             " -d ", input$textInput_newDipLogR," --seed 100 -f ", 
+             selected_run$path[1], "/countsMerged____", selected_run$tumor_sample_id[1], ".dat.gz ",
+             "-t ", selected_run$tumor_sample_id[1], " -D ", refit_dir)
+   
     write(refit_cmd, refit_cmd_file)
     showModal(modalDialog(
       title = "Job submitted!", paste0("Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
     ))
   })
+  
+  ## check if watcher is running
+  {
+    cur_time = as.numeric(system(" date +%s", intern=TRUE))
+    last_mod = as.numeric(system("stat -f%c /ifs/res/taylorlab/bandlamc/facets_review_app/facets_refit_watcher/watcher.log", intern=TRUE))
+    if ( cur_time - last_mod < 900) {
+      shinyjs::showElement(id="div_watcherSuccess")  
+    } else {
+      shinyjs::showElement(id="div_watcherFail")
+    }
+  }  
 }

@@ -11,6 +11,7 @@ Imports:
     data.table,
     stringr,
     dplyr,
+    shinyjs,
     DT
 License: What license is it under?
 Encoding: UTF-8
