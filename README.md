@@ -19,8 +19,7 @@ Load, review and adjust facets fits
 ```
 git clone git@github.com:taylor-lab/facets-preview.git
 cd facets-preview
-Rscript -e "devtools::install_deps()"
-R CMD INSTALL .
+Rscript -e 'if(!require("devtools")) install.packages("devtools", repo="https://cloud.r-project.org"); devtools::install()'
 ```
 
 
