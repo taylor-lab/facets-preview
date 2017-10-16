@@ -4,6 +4,7 @@
 #' @param manifest list of facets run directories
 #' @param progress progress bar from shiny
 #' @return simple metadata data.frame
+#' @import dplyr
 #' @export load_samples
 load_samples <- function(manifest, progress) {
   metadata <- data.frame(sample=c(), path = c(), run_dir_exists = c(), num_fits_found = c(),stringsAsFactors=FALSE)

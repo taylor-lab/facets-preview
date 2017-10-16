@@ -18,7 +18,7 @@ server <-
 
   # check if /ifs is mounted
   {
-    if (grepl("mskcc.org:/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
+    if (grepl(":/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
       shinyjs::hideElement(id= "wellPanel_mountFail")
     } else { shinyjs::showElement(id= "wellPanel_mountFail") }
   }

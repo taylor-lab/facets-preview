@@ -27,7 +27,7 @@ R CMD INSTALL .
 ## Usage
 Launch it (opens in browser)
 ```
-R -e "library(facetsPreview); facetsPreview::launch_application_browser()"   
+Rscript -e "library(facetsPreview); facetsPreview::launch_application_browser()"   
 ```
 
 Example input file:
