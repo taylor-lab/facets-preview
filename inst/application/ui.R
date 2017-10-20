@@ -6,8 +6,7 @@
 #' @importFrom shinyWidgets radioGroupButtons
 #' @importFrom DT datatable
 #' @import shinyjs 
-ui <- 
-  fluidPage(
+fluidPage(
    shinyjs::useShinyjs(),
     navbarPage(
       "FACETS Preview",

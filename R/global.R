@@ -154,7 +154,6 @@ get_review_status <- function(sample, sample_path) {
   return (fread(review_file, colClasses=list(POSIXct="date_reviewed"), skip = 1))
 }
 
-
 #' helper function for app
 #'
 #' @param sample_path  facets run directory containing 'facets_review.manifest'

@@ -11,11 +11,13 @@
 #' @import stringr
 #' @import shinyjs
 
-server <- 
-  function(input, output, session) {
-  
+function(input, output, session) {
   values <- reactiveValues()
 
+  #' helper function for app
+  #'
+  #' @return checks for mount
+  #' @export verify_ifs_mount
   verify_ifs_mount <- function() {
     if (grepl(":/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
       shinyjs::hideElement(id= "wellPanel_mountFail")
@@ -27,8 +29,14 @@ server <-
     }
   }
   
+  #' helper function for app
+  #'
+  #' @param selected_sample sampleid
+  #' @param selected_sample_path facets run directory containing 'facets_review.manifest'
+  #' @return nothing
+  #' @export refresh_review_status
   refresh_review_status <- function(selected_sample, selected_sample_path) {
-    review_df <- get_review_status(selected_sample, selected_sample_path)
+    review_df <- facetsPreview:::get_review_status(selected_sample, selected_sample_path)
     if ( dim(review_df)[1] > 0)
     output$datatable_reviewHistory <- DT::renderDataTable({
       DT::datatable(review_df %>%
