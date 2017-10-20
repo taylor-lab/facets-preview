@@ -132,6 +132,7 @@ metadata_init <- function(sample, sample_path, progress) {
 
 #' helper function for app
 #'
+#' @param sample sampleid
 #' @param sample_path facets run directory containing 'facets_review.manifest'
 #' @return converts string to numeric and rounds to 2-digits
 #' @export get_review_status
