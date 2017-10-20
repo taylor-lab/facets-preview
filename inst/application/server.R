@@ -16,21 +16,51 @@ server <-
   
   values <- reactiveValues()
 
-  # check if /ifs is mounted
-  {
+  verify_ifs_mount <- function() {
     if (grepl(":/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
       shinyjs::hideElement(id= "wellPanel_mountFail")
-    } else { shinyjs::showElement(id= "wellPanel_mountFail") }
+      return(TRUE)
+    } else { 
+      shinyjs::showElement(id= "wellPanel_mountFail") 
+      showModal(modalDialog( title = "/ifs mount not detected", "Re-mount and try again" ))
+      return (FALSE)
+    }
+  }
+  
+  refresh_review_status <- function(selected_sample, selected_sample_path) {
+    review_df <- get_review_status(selected_sample, selected_sample_path)
+    if ( dim(review_df)[1] > 0)
+    output$datatable_reviewHistory <- DT::renderDataTable({
+      DT::datatable(review_df %>%
+                      select(-sample, -path) %>% 
+                      arrange(desc(date_reviewed)), 
+                    selection=list(mode='single'),
+                    options = list(columnDefs = list(list(className = 'dt-center')),
+                                   pageLength = 5),
+                    rownames=FALSE)  
+    })
   }
   
   observeEvent(input$button_mountFailRefresh, { 
     if (grepl("mskcc.org:/ifs ", paste(system("mount 2>&1", intern=TRUE), collapse=" "))) {
       shinyjs::hideElement(id= "wellPanel_mountFail")
     }
+    return(NULL)
   })
-    
+   
+  # check if /ifs is mounted
+  if (!verify_ifs_mount()) {
+    return(NULL)
+  }
+  
   observeEvent(input$button_fileInput, {
-    if ( is.null(input$fileInput_filename) || is.null(input$fileInput_filename$datapath)) {
+    if (!verify_ifs_mount()) { return (NULL) }
+    
+    if ( is.null(input$textInput_filename) || 
+         !file.exists(input$textInput_filename) || 
+         file.info(input$textInput_filename)$isdir) 
+    {
+      showModal(modalDialog( title = "File not found", paste0( input$textInput_filename) ))
       return(NULL)
     }
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
@@ -39,61 +69,82 @@ server <-
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
 
-    con <- file(input$fileInput_filename$datapath)
+    con <- file(input$textInput_filename)
     manifest = readLines(con)
     close(con)
     manifest_metadata <- load_samples(manifest, progress)
     
-    values$df_data <- manifest_metadata %>% mutate(reviewed = FALSE, note = "") 
+    values$df_data <- manifest_metadata 
     
     values$submitted_refits <- c()
   })
   
   observeEvent(input$button_samplesInput, {
+    if (!verify_ifs_mount()) { return (NULL) }
+  
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
 
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
     
-    manifest = unlist(stringr::str_split(input$textAreaInput_samplesInput, "\n"))
+    manifest = unlist(stringr::str_split(stringr::str_replace_all(input$textAreaInput_samplesInput, " ", ""), "\n"))
     manifest_metadata <- load_samples(manifest, progress)
-    values$df_data <- manifest_metadata %>% mutate(reviewed = FALSE, note = "") 
+    values$df_data <- manifest_metadata 
     
     values$submitted_refits <- c()
   })
   
   output$datatable_samples <- DT::renderDataTable({
-    DT::datatable(values$df_data, selection=list(mode='single', selected=values$dt_sel), 
-              options = list(columnDefs = list(list(className = 'dt-center'), list(visible=FALSE, targets = c(2))),
-                             pageLength = 20))  
+    DT::datatable(values$df_data %>%
+                    select(-path), 
+                  selection=list(mode='single', selected=values$dt_sel),
+                  #options = list(columnDefs = list(list(className = 'dt-center'), list(visible=FALSE, targets = c(1))),
+                  options = list(pageLength = 20),
+                  rownames=FALSE)  
     # hide path column
   })
 
   observeEvent(input$datatable_samples_rows_selected, {
-    updateNavbarPage(session, "navbarPage1", selected = "tabPanel_reviewFits")
-    values$selected_sample = paste(unlist(values$df_data[input$datatable_samples_rows_selected,1]), collapse="")
-    values$selected_sample_path = paste(unlist(values$df_data[input$datatable_samples_rows_selected,2]), collapse="")
+    if (!verify_ifs_mount()) { return (NULL) }
+    selected_sample = paste(unlist(values$df_data[input$datatable_samples_rows_selected,1]), collapse="")
+    selected_sample_path = paste(unlist(values$df_data[input$datatable_samples_rows_selected,2]), collapse="")
+    selected_sample_num_fits = values$df_data[input$datatable_samples_rows_selected,4]
     
+    if (selected_sample_num_fits == 0) {
+      showModal(modalDialog( title = "No fits found for this sample", 
+                             "Path to this sample may be incorrect. " ))
+      return(NULL)  # print some kind of error and exit;
+    }
+    
+    updateNavbarPage(session, "navbarPage1", selected = "tabPanel_reviewFits")
+
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Loading FACETS runs for the selected sample:", value = 0)
-    values$sample_runs <- metadata_init(values$selected_sample, values$selected_sample_path, progress)
+    values$sample_runs <- metadata_init(selected_sample, selected_sample_path, progress)
     
     output$verbatimTextOutput_runParams <- renderText({})
     output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
     
     if ( dim(values$sample_runs)[1] == 0) {
-      next  # print some kind of error and exit;
+      showModal(modalDialog( title = "Unable to read sample", "likey cause: /ifs mount failed.  Re-mount and try." ))
+      return(NULL)  # print some kind of error and exit;
     }
+    
+    # update with review status
+    refresh_review_status(selected_sample, selected_sample_path)
     
     ## bind to drop-down
     updateSelectInput(session, "selectInput_selectFit",
                       choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
                       selected = "Not selected"
     )
-    
+    updateSelectInput(session, "selectInput_selectBestFit",
+                      choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
+                      selected = "Not selected"
+    )
     shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected="Hisens")
   })
   
@@ -112,6 +163,7 @@ server <-
   })
   
   observeEvent(input$selectInput_selectFit, {
+    if (!verify_ifs_mount()) { return (NULL) }
     output$verbatimTextOutput_runParams <- renderText({})
     output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
@@ -121,7 +173,7 @@ server <-
   
     # update other text options
     selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
-    
+
     if (grepl("facets_refit", input$selectInput_selectFit) ) {
       shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected="Hisens")
     } else {
@@ -129,7 +181,43 @@ server <-
     }
   })
   
+  observeEvent(input$button_addReview, {
+    selected_run <- values$sample_runs[1,] # select any fit 
+    sample = selected_run$tumor_sample_id[1]
+    path = selected_run$path[1]
+    review_status = input$radioButtons_reviewStatus
+    fit_name = input$selectInput_selectBestFit[1]
+    signed_as = input$textInput_signAs[1]  
+    note = input$textAreaInput_reviewNote[1]
+    
+    df <- get_review_status(sample, path)
+    if (dim(df)[1] > 0){
+      ## check if the sample has been recently reviewed (in the past 1hr)
+      cur_time = Sys.time()
+      if (any(which(as.numeric(difftime(cur_time, df$date_reviewed, units="hours")) < 1))) {
+        showModal(modalDialog(
+          title = "ALERT", paste0("This sample has been reviewed within the past hour. 
+                                  Your review is added but make sure all is tight.")
+        ))
+      }
+    }
+    df <- data.frame(
+      sample = c(sample),
+      path = c(path),
+      review_status = c(review_status),
+      best_fit = c(fit_name),
+      review_notes = c(note),
+      reviewed_by = c(signed_as),
+      date_reviewed = as.character(Sys.time()),
+      stringsAsFactors=FALSE
+    )
+    update_review_status_file(path, df)
+    
+    refresh_review_status(sample, path)
+  })
+  
   observeEvent(input$radioGroupButton_fitType, {
+    if (!verify_ifs_mount()) { return (NULL) }
     if (input$selectInput_selectFit == "Not selected" || 
         (grepl("facets_refit", input$selectInput_selectFit) && input$radioGroupButton_fitType == "Purity")){
       output$verbatimTextOutput_runParams <- renderText({})
@@ -172,7 +260,8 @@ server <-
                       select(-ID, -cnlr.median.clust, -mafR.clust, -segclust), 
                     selection=list(mode='single'),
                     options = list(columnDefs = list(list(className = 'dt-center')),
-                                   pageLength = 50))  
+                                   pageLength = 50),
+                    rownames=FALSE)  
     })
     
     output$imageOutput_pngImage1 <- renderImage({
@@ -195,6 +284,7 @@ server <-
   })
   
   observeEvent(input$button_refit, {
+    if (!verify_ifs_mount()) { return (NULL) }
     if (input$selectInput_selectFit == "Not selected" || 
         is.na(suppressWarnings(as.integer(input$textInput_newDipLogR))) || 
         is.na(suppressWarnings(as.integer(input$textInput_newCval))))
@@ -241,5 +331,5 @@ server <-
     } else {
       shinyjs::showElement(id="div_watcherFail")
     }
-  }  
+  }
 }
