@@ -26,9 +26,9 @@ Rscript -e 'if(!require("devtools")) install.packages("devtools", repo="https://
 ## Usage
 Launch it (opens in browser)
 ```
-Rscript -e "library(facetsPreview); facetsPreview::launch_application_browser()"   
+Rscript -e "library(facetsPreview); library(dplyr); facetsPreview::launch_application_browser()"   
 ```
-
+#### NOTE: You may need to add ```sudo``` to the above command if you are getting permission errors when accessing ```/ifs``` mount on yor computer.  
 Example input file:
 ```
 /ifs/res/taylorlab/bandlamc/facets_review_app/test_input
@@ -37,7 +37,8 @@ Example input file:
 #### NOTE:  To make things easier, make sure ```/ifs``` is mounted on your laptop through ```sshfs```
 
 ```
-sshfs <username>@luna.mskcc.org:/ifs /ifs -o auto_cache -o defer_permissions -o local -o IdentityFile=/users/<username>/.ssh/id_rsa -o reconnect -o transform_symlinks -o follow_symlinks
+sudo mkdir /ifs
+sudo sshfs <username>@luna.mskcc.org:/ifs /ifs -o auto_cache -o defer_permissions -o local -o IdentityFile=/users/<username>/.ssh/id_rsa -o reconnect -o transform_symlinks -o follow_symlinks
 ```
 
 
