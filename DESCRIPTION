@@ -12,7 +12,10 @@ Imports:
     stringr,
     dplyr,
     shinyjs,
-    DT
+    DT,
+    Cairo,
+    gridExtra,
+    rhandsontable
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
