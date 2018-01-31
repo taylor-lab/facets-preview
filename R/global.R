@@ -215,6 +215,45 @@ get_new_facets_runs_df <- function() {
   )
 }
 
+#'
+#'
+#' @return
+#' @export get_cncf_table
+get_cncf_table <- function(fit_type, selected_run) {
+  if (fit_type == "Hisens") {
+    run_prefix = selected_run$hisens_run_prefix[1]
+  } else {
+    run_prefix = selected_run$purity_run_prefix[1]
+  }
+  if ( file.exists(paste0(run_prefix, ".cncf.edited.txt"))) {
+    cncf_filename = paste0(run_prefix, ".cncf.edited.txt")
+  } else {
+    cncf_filename = paste0(run_prefix, ".cncf.txt")
+  }
+
+  cncf_data <- data.table::fread(cncf_filename)
+
+  if ( !("cf" %in% names(cncf_data)) & !("cf.em" %in% names(cncf_data)) ) {
+    return(data.table())
+  }
+  if (!("cf" %in% names(cncf_data))) {
+    cncf_data[, cf := cf.em]
+    cncf_data[, tcn := tcn.em]
+    cncf_data[, lcn := lcn.em]
+  }
+
+  cncf_data <-
+    cncf_data %>%
+    rowwise() %>%
+    mutate(cnlr.median = round_down(cnlr.median),
+           mafR = round_down(mafR),
+           cf = round_down(cf),
+           cf.em = round_down(cf.em)) %>%
+    select(-ID, -cnlr.median.clust, -mafR.clust, -segclust)
+
+  return(cncf_data)
+}
+
 #' helper function for app
 #'
 #' @return launches app

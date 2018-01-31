@@ -256,23 +256,13 @@ function(input, output, session) {
     })
 
     output$datatable_cncf <- DT::renderDataTable({
-      if (input$radioGroupButton_fitType == "Hisens") {
-        run_prefix = selected_run$hisens_run_prefix[1]
-      } else {
-        run_prefix = selected_run$purity_run_prefix[1]
+      cncf_data <-
+        get_cncf_table(input$radioGroupButton_fitType, selected_run)
+      if ( dim(cncf_data)[1] == 0 ){
+        showModal(modalDialog( title = "CNCF file missing", "Invalid CNCF file" ))
+        return()
       }
-      if ( file.exists(paste0(run_prefix, ".cncf.edited.txt"))) {
-        cncf_filename = paste0(run_prefix, ".cncf.edited.txt")
-      } else {
-        cncf_filename = paste0(run_prefix, ".cncf.txt")
-      }
-      DT::datatable(data.table::fread(cncf_filename) %>%
-                      rowwise() %>%
-                      mutate(cnlr.median = round_down(cnlr.median),
-                             mafR = round_down(mafR),
-                             cf = round_down(cf),
-                             cf.em = round_down(cf.em)) %>%
-                      select(-ID, -cnlr.median.clust, -mafR.clust, -segclust),
+      DT::datatable(cncf_data,
                     selection=list(mode='single'),
                     options = list(columnDefs = list(list(className = 'dt-center')),
                                    pageLength = 50),
@@ -280,29 +270,16 @@ function(input, output, session) {
     })
 
     output$editableSegmentsTable <- rhandsontable::renderRHandsontable({
-      if (input$radioGroupButton_fitType == "Hisens") {
-        run_prefix = selected_run$hisens_run_prefix[1]
-      } else {
-        run_prefix = selected_run$purity_run_prefix[1]
-      }
-      if ( file.exists(paste0(run_prefix, ".cncf.edited.txt"))) {
-        cncf_filename = paste0(run_prefix, ".cncf.edited.txt")
-      } else {
-        cncf_filename = paste0(run_prefix, ".cncf.txt")
-      }
-      dtb <-
-        data.table::fread(cncf_filename) %>%
-        rowwise() %>%
-        mutate(cnlr.median = round_down(cnlr.median),
-               mafR = round_down(mafR),
-               cf = round_down(cf),
-               cf.em = round_down(cf.em)) %>%
-        select(-ID, -cnlr.median.clust, -mafR.clust, -segclust) %>%
+      cncf_data <-
+        get_cncf_table(input$radioGroupButton_fitType, selected_run) %>%
         data.frame()
-      dim(dtb)
-
-      if (!is.null(dtb)) {
-        rhandsontable::rhandsontable(dtb, useTypes=FALSE, stretchH = "all") %>%
+      if ( dim(cncf_data)[1] == 0 ){
+        showModal(modalDialog( title = "CNCF file missing", "Invalid CNCF file" ))
+        return()
+      }
+      if (!is.null(cncf_data)) {
+        rhandsontable::rhandsontable(cncf_data,
+                                     useTypes=FALSE, stretchH = "all") %>%
           rhandsontable::hot_table(columnSorting = TRUE,
                     highlightRow = TRUE,
                     highlightCol = TRUE)
