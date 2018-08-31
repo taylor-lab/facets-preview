@@ -16,7 +16,9 @@ Imports:
     DT,
     Cairo,
     gridExtra,
-    rhandsontable
+    rhandsontable,
+    plyr, 
+    bit64
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true
