@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/taylor-lab/facets-preview.svg?token=4kBAQAEEc39zo9ACoThH&branch=master)](https://github.com/taylor-lab/facets-preview)
+
 # facets-preview
 Load, review and adjust facets fits
 
