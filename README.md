@@ -31,7 +31,7 @@ Launch it (opens in browser)
 ```
 Rscript -e "library(facetsPreview); library(dplyr); facetsPreview::launch_application_browser()"   
 ```
-#### NOTE: If you would like to access ```ifs``` when using facets-preview, mount ```ifs``` onto your labtop through ```sshfs``` (You may need to install "FUSE for OS X" fromhttp://osxfuse.github.io first before you install "SSHFS" from https://github.com/osxfuse/osxfuse/wiki/SSHFS) 
+#### NOTE: If you would like to access ```ifs``` when using facets-preview, mount ```ifs``` onto your labtop through ```sshfs``` (You may need to install "FUSE for OS X" from http://osxfuse.github.io first before you install "SSHFS" from https://github.com/osxfuse/osxfuse/wiki/SSHFS) 
 
 ```
 mkdir ~/ifs
