@@ -38,8 +38,7 @@ Launch it (opens in browser)
 ```
 Rscript -e "library(facetsPreview); library(dplyr); facetsPreview::launch_application_browser()"   
 ```
-#### NOTE: If you would like to access ```ifs``` when using facets-preview, mount ```ifs``` onto your labtop through ```sshfs``` (You may need to install "FUSE for OS X" from http://osxfuse.github.io first before you install "SSHFS" from https://github.com/osxfuse/osxfuse/wiki/SSHFS) 
-
+#### NOTE: If you would like to access ```ifs``` when using facets-preview, mount ```ifs``` onto your labtop through ```sshfs``` 
 ```
 mkdir ~/ifs
 sshfs $(whoami)@luna.mskcc.org:/ifs ~/ifs -o auto_cache -o defer_permissions -o local -o IdentityFile=/users/$(whoami)/.ssh/id_rsa -o reconnect -o transform_symlinks -o follow_symlinks
@@ -47,7 +46,16 @@ cd /
 sudo ln -s ~/ifs
 ```
 
-Example input file:
+#### You may need to install "FUSE for OS X" from http://osxfuse.github.io first before you install "SSHFS" from https://github.com/osxfuse/osxfuse/wiki/SSHFS) 
+
+#### For Homebrew users on MacOS, execute the following to install FUSE:
+
+    brew install autoconf automake libtool gettext
+    brew link --force gettext
+    
+
+
+#### Example input file:
 ```
 /ifs/res/taylorlab/bandlamc/facets_review_app/test_input
 ```
