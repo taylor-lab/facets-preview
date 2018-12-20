@@ -18,7 +18,10 @@ Load, review and adjust facets fits
 
 
 ## Setup
-#### For Mac OS X users: if you don't have X11 (XQuartz) installed, please install it first from https://www.xquartz.org/ 
+#### For Mac OS X users: if you don't have X11 (XQuartz) installed, please install it first either via https://www.xquartz.org/ or, if using Homebrew, install `Cairo` with `brew install cairo`. 
+
+## Installation
+
 ```
 git clone git@github.com:taylor-lab/facets-preview.git
 cd facets-preview
