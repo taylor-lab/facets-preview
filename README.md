@@ -34,7 +34,8 @@ Rscript -e 'if(!require("devtools")) install.packages("devtools", repo="https://
 
 
 ## Usage
-Launch it (opens in browser)
+
+#### Launch it (opens in browser)
 ```
 Rscript -e "library(facetsPreview); library(dplyr); facetsPreview::launch_application_browser()"   
 ```
