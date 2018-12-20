@@ -4,8 +4,9 @@
 \alias{cellular.fraction}
 \title{helper function for app}
 \usage{
-cellular.fraction(out, fit, method = c("cncf", "em"), load.genome = FALSE,
-  gene.pos = NULL, main = "", lend = "butt", theme = "bw", ...)
+cellular.fraction(out, fit, method = c("cncf", "em"),
+  load.genome = FALSE, gene.pos = NULL, main = "", lend = "butt",
+  theme = "bw", ...)
 }
 \value{
 simple metadata data.frame

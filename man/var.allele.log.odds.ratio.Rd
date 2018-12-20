@@ -4,9 +4,10 @@
 \alias{var.allele.log.odds.ratio}
 \title{helper function for app}
 \usage{
-var.allele.log.odds.ratio(out, fit, load.genome = FALSE, gene.pos = NULL,
-  col.1 = "#0080FF", col.2 = "#4CC4FF", sample.num = NULL,
-  lend = "butt", theme = "bw", subset.indices = NULL)
+var.allele.log.odds.ratio(out, fit, load.genome = FALSE,
+  gene.pos = NULL, col.1 = "#0080FF", col.2 = "#4CC4FF",
+  sample.num = NULL, lend = "butt", theme = "bw",
+  subset.indices = NULL)
 }
 \value{
 simple metadata data.frame

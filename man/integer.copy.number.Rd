@@ -4,8 +4,9 @@
 \alias{integer.copy.number}
 \title{helper function for app}
 \usage{
-integer.copy.number(out, fit, method = c("cncf", "em"), load.genome = FALSE,
-  gene.pos = NULL, main = "", lend = "butt", theme = "bw", ...)
+integer.copy.number(out, fit, method = c("cncf", "em"),
+  load.genome = FALSE, gene.pos = NULL, main = "", lend = "butt",
+  theme = "bw", ...)
 }
 \value{
 simple metadata data.frame
