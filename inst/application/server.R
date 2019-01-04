@@ -147,9 +147,11 @@ function(input, output, session) {
     refresh_review_status(selected_sample, selected_sample_path)
 
     ## bind to drop-down
+    first_selection = unlist(values$sample_runs$fit_name)[[1]]
+    if (is.na(first_selection)) first_selection = 'None'
     updateSelectInput(session, "selectInput_selectFit",
-                      choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
-                      selected = "Not selected"
+                      choices = as.list(c(unlist(values$sample_runs$fit_name))),
+                      selected = first_selection
     )
     updateSelectInput(session, "selectInput_selectBestFit",
                       choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
