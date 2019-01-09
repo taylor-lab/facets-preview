@@ -42,10 +42,9 @@ for(i in 1:total_tumors)
     print(sample_pairing$T[i])
     cm_file = gsub(",", "",toString(facets_cm_files[as.numeric(grep(sample_pairing$T[i],facets_cm_files))]))
     print(cm_file)
-    #cmd_cm_rename = paste0("countsMerged____",sample_pairing$T[i],".dat.gz")
+  
     cmd_cm_rename = paste0("countsMerged____",sample_pairing$T[i],"__",sample_pairing$N[i],".dat.gz")
     cmd2 = paste0("mv ",cm_file," ",sample_dir_name,"/",cmd_cm_rename)
-    #cmd2 = paste0("mv ",sample_dir_name,"/",cmd_cm_rename," ",sample_dir_name,"/",cmd_cm_rename_new)
     print(cmd2)
     system(cmd2)
     
