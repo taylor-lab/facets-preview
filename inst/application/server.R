@@ -407,7 +407,7 @@ function(input, output, session) {
 
     refit_cmd <-
       paste0("mkdir -p ", refit_dir, "; ",
-             "cmo_facets --lib-version 0.5.6 doFacets -c ", input$textInput_newCval,
+             "cmo_facets --lib-version 0.5.14 doFacets -c ", input$textInput_newCval,
              " -d ", input$textInput_newDipLogR," --seed 100 -f ",
              selected_run$path[1], "/countsMerged____", selected_run$tumor_sample_id[1], ".dat.gz ",
              "-t ", selected_run$tumor_sample_id[1], " -D ", refit_dir)
