@@ -1,11 +1,11 @@
 Package: facetsPreview
-Title: What the Package Does (one line, title case)
+Title: Review and refit FACETS runs
 Version: 0.0.0.9000
 Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Description: Review and refit FACETS runs
 biocViews: 
 Depends: 
-    R (>= 3.3.0),
+    R (>= 3.2.0),
     dplyr
 Imports:
     shiny,
@@ -19,7 +19,9 @@ Imports:
     gridExtra,
     rhandsontable,
     plyr, 
-    bit64
+    bit64,
+    lubridate,
+    glue
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true
