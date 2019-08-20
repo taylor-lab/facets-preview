@@ -230,8 +230,8 @@ function(input, output, session) {
     output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
 
-    if ( dim(values$sample_runs)[1] == 0) {
-      showModal(modalDialog( title = "Unable to read sample", "likey cause: /ifs mount failed.  Re-mount and try." ))
+    if ( is.null(values$sample_runs) || dim(values$sample_runs)[1] == 0) {
+      showModal(modalDialog( title = "Unable to read sample", "Either no runs exist for this sample, or, /ifs mount failed." ))
       return(NULL)  # print some kind of error and exit;
     }
 

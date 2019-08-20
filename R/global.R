@@ -140,7 +140,8 @@ metadata_init_quick <- function(sample_id, sample_path) {
 metadata_init <- function(sample_id, sample_path, progress = NULL) {
   facets_runs <- get_new_facets_runs_df()
   facets_run_dirs = list.dirs(sample_path, full.names=FALSE)
-  
+  print (sample_id)
+  print(sample_path)
   ## identify different fits generated for this sample.
   facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs)]
 
@@ -181,7 +182,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
       ### for purity runs, run QC. (here we are checking for "not hisens" because some 
       ### runs may not have _purity or _hisens suffix)
       rdata_file = paste0(run_prefix, ".Rdata")
-      if ( !grepl('hisens', run_type) & file.exists(rdata_file)) {
+      if ( (length(facets_run_files) == 1) || (!grepl('hisens', run_type) & file.exists(rdata_file))) {
         facets_output = get_facets_output_from_rdata(rdata_file)
         if (!is.null(facets_output$alballogr)) {
           assign(paste0(run_type, "alBalLogR"), 
@@ -221,7 +222,11 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
                                       stringsAsFactors=FALSE),
                            impact_qc))
   }
-
+  
+  if (nrow(facets_runs) == 0) {
+    return(NULL)
+  }
+  
   # load reviews from the manifest file and annotate each review with the facets-suite QC status.
   # Here is where we make sure the facets_review.manifest is forward-compatible - transformed with 
   # new columns 
@@ -252,6 +257,9 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
   
   facets_runs$is_best_fit = F
   facets_runs$is_best_fit[which(facets_runs$fit_name == best_fit)] = T
+  
+  write.table(facets_runs %>% select(-ends_with("_filter_note")), 
+              file=paste0(sample_path, '/facets_suite.qc.txt'), quote=F, row.names=F, sep='\t')
   
   facets_runs
 }
