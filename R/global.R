@@ -34,7 +34,7 @@ load_impact_samples <- function(dmp_ids, progress) {
   ## Load facets manifest files
   ##
   manifest_file <-
-    (data.frame(manifest_file = list.files('/ifs/res/taylorlab/impact_facets/facets_0.5.14/manifests/', 
+    (data.frame(manifest_file = list.files('/juno/work/ccs/resources/impact/facets/manifests/', 
                                            full.names = T,
                                            recursive=F), 
                 stringsAsFactors = F) %>%
@@ -183,15 +183,14 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
       ### runs may not have _purity or _hisens suffix)
       rdata_file = paste0(run_prefix, ".Rdata")
       if ( (length(facets_run_files) == 1) || (!grepl('hisens', run_type) & file.exists(rdata_file))) {
-        facets_output = get_facets_output_from_rdata(rdata_file)
-        if (!is.null(facets_output$alballogr)) {
+        facets_output = facetsSuite::load_facets_output(rdata_file)
+
+        if (!is.null(facets_output$alBalLogR)) {
           assign(paste0(run_type, "alBalLogR"), 
-                 paste(round(facets_output$alballogr[,1],digits = 2), 
+                 paste(round(facets_output$alBalLogR[,1],digits = 2), 
                        collapse=", "))
         }
-        
-        quality_for_fit_df <- as.data.frame(assess_quality_for_fit(facets_output), stringsAsFactors = F)
-        impact_qc <- get_qc_for_impact_fit(quality_for_fit_df)
+        fit_qc = get_impact_qc_for_fit(facets_output)
       }
     }
 
@@ -220,7 +219,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
                                       manual_note = NA,
                                       is_best_fit = NA,
                                       stringsAsFactors=FALSE),
-                           impact_qc))
+                           fit_qc))
   }
   
   if (nrow(facets_runs) == 0) {
@@ -312,7 +311,6 @@ get_review_status <- function(sample_id, sample_path) {
   }
   existing_reviews <-
     fread(review_file, colClasses=list(POSIXct="date_reviewed"), skip = 1) %>%
-    # rename the column 'best_fit' to 'fit_name' (backwards compatibility)
     rename_all(recode, 'best_fit' = 'fit_name') 
   
   ### backwards compatibility; adding this new column
@@ -468,6 +466,7 @@ require(data.table)
 #' @import gridExtra
 #' @import plyr
 #' @import data.table
+#' @import magrittr
 #' @export copy.number.log.ratio
 copy.number.log.ratio = function(out, fit, load.genome=FALSE, gene.pos=NULL, col.1="#0080FF", col.2="#4CC4FF", sample.num=NULL, lend='butt', theme='bw', subset.indices=NULL){
 
@@ -740,8 +739,10 @@ get.cumulative.chr.maploc = function(mat, load.genome=FALSE){
 #' @return simple metadata data.frame
 #' @import dplyr
 #' @export get.gene.pos.cached
-get.gene.pos.cached <- function(hugo.symbol, my.path='/ifs/work/bandlamc/git/facets-suite/Homo_sapiens.GRCh37.75.gene_positions.txt') {
-  fread(my.path) %>%
+get.gene.pos.cached <- function(hugo.symbol, 
+                                my.path=NULL) {
+  data.table::fread(my.path) %>%
+    data.table %>%
     dplyr::filter(gene == hugo.symbol)
 }
 
@@ -752,10 +753,6 @@ get.gene.pos.cached <- function(hugo.symbol, my.path='/ifs/work/bandlamc/git/fac
 #' @import dplyr
 #' @export close.up
 close.up = function(out, fit, chrom.range=NULL, method=NA, gene.name=NULL, lend='butt', bed.path=NULL, cached.gene.path = NULL, subset.snps=FALSE, ...){
-
-  #if (!is.null(bed.path)) { gene.info = get.gene.pos(gene.name, my.path = bed.path)
-  #} else { gene.info = get.gene.pos(gene.name) }
-
   if (!is.null(cached.gene.path)) {gene.info = get.gene.pos.cached(gene.name, my.path = cached.gene.path)
   } else if (!is.null(bed.path)) { gene.info = get.gene.pos(gene.name, my.path = bed.path)
   } else { gene.info = get.gene.pos(gene.name) }

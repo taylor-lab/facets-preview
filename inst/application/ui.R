@@ -33,7 +33,7 @@ ui <-
                              style = "background-color: white; border-color: white; ",
                              HTML(
                                paste0("<div style=\"font-size: 16px; font-family: georgia; color: red; display: inline-block\">
-                                      <i class=\"fa fa-exclamation-triangle\" aria-hidden=\"true\"></i><strong> /ifs/ not mounted. 
+                                      <i class=\"fa fa-exclamation-triangle\" aria-hidden=\"true\"></i><strong> /juno/ not mounted. 
                                       Nothing is gonna work!  </strong></div>")
                              ),
                              actionButton("button_mountFailRefresh", "Check for mount again", icon = icon("refresh"))
@@ -49,22 +49,20 @@ ui <-
                  wellPanel(
                    h4("Load from IMPACT facets runs maintained by CCS. Note: Refit permissions maybe restricted."),
                    h5("Eg: P-0004134-T01-IM5, P-0009997-T01-IM5"),
-                   textAreaInput("textAreaInput_dmpSamplesInput", label=NA, value="P-0000012-T04-IM6,P-0000208-T02-IM5,P-0000239-T01-IM3,P-0000302-T02-IM6,P-0000702-T01-IM3,P-0000825-T01-IM3", rows=1),
+                   textAreaInput("textAreaInput_dmpSamplesInput", label=NULL, value="", rows=1),
                    actionButton("button_dmpSamplesInput", "Retrieve IMPACT run(s)", class = "btn-primary")
                  ),
                  h3("or",style="text-align:center"),
                  wellPanel(
                    h4("Paste facets run directories"),
-                   h5("Eg: /ifs/res/taylorlab/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5"),
-                   textAreaInput("textAreaInput_samplesInput", label=NA, 
-                                 value="/ifs/res/taylorlab/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5", 
-                                 rows=4),
+                   h5("Eg: /juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5"),
+                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="/juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5", rows=4),
                    actionButton("button_samplesInput", "Retrieve Sample(s)", class = "btn-primary")
                  ),
                  h3("or",style="text-align:center"),
                  wellPanel(
                    h4("Load facets runs from file"),
-                   h5("file containing list of directories. Eg: /ifs/res/taylorlab/bandlamc/facets_review_app/test_input"),
+                   h5("file containing list of directories. Eg: /juno/work/ccs/bandlamc/facets_review_app/test_input"),
                    textInput("textInput_filename", ""),
                    actionButton("button_fileInput", "Retrieve Sample(s) from file", class = "btn-primary")
                  ),
@@ -85,13 +83,13 @@ ui <-
                  column(3,
                         wellPanel(
                           h4(strong("Select fit:")),
-                          selectInput(inputId = "selectInput_selectFit", label=NA,
+                          selectInput(inputId = "selectInput_selectFit", label=NULL,
                                       choices=c("Not selected"), selected=NA),
                           shinyjs::hidden(div(id="div_bestFitTrophy",
                                               HTML(" <center><font size=4>
                                                    <i class=\"fa fa-thumbs-up\" aria-hidden=\"true\"></i> Reviewed as best fit</center>
                                                    </font>"), 
-                                              style="color: darkgreen; align: center; width: 50%")),
+                                              style="color: darkgreen; align: left; width: 70%")),
                           style = "padding: 10px; "
                         ),
                         wellPanel(
@@ -142,29 +140,11 @@ ui <-
                                       DT::dataTableOutput("datatable_QC_flags"),
                                       h3("Other facets-suite QC metrics (purity run):"),
                                       DT::dataTableOutput("datatable_QC_metrics")
-                                       # tabPanel("QC",
-                                       #          value = "tabPanel_QC",
-                                       #          h3("Showing QC for:"),
-                                       #          verbatimTextOutput("verbatimTextOutput_name_of_qc_fit"),
-                                       #          h3("facets-suite QC flags:"),
-                                       #          DT::dataTableOutput("datatable_QC_flags"),
-                                       #          h3("Other facets-suite QC metrics (purity run):"),
-                                       #          DT::dataTableOutput("datatable_QC_metrics"))
-                                       # tabPanel("EM - CNCF fit QC", 
-                                       #          value = "tabPanel_fit_stats_plots", 
-                                       #          fluidRow(
-                                       #            column(6, imageOutput("imageOutput_EM_plot")),
-                                       #            column(6, imageOutput("imageOutput_CNCF_plot"))
-                                       #            )  
-                                       #          ),
-                                       # tabPanel("EM - CNCF concordance",
-                                       #          value = "tabPanel_fit_stats_table", 
-                                       #          imageOutput("imageOutput_EMvsCNCF_plot"))
                                      ),
                             tabPanel("Close Ups",
                                      value="closeup_tabset",
                                      wellPanel(
-                                       textInput("textInput_geneForCloseup", label = NA,
+                                       textInput("textInput_geneForCloseup", label = NULL,
                                                  placeholder = "Hugo Symbol"),
                                        actionButton("button_closeUpView", "View Gene", class = "btn-primary",
                                                     width='100%')),
@@ -213,9 +193,9 @@ ui <-
                                          textInput("textInput_purity", label = 'Use purity (only to be set when facets purity is NA/0.3):')
                                        ),
                                        h4(strong("Review Notes:")),
-                                       textAreaInput("textAreaInput_reviewNote", label=NA, value="", rows=1),
+                                       textAreaInput("textAreaInput_reviewNote", label=NULL, value="", rows=1),
                                        h4(strong("Reviewed By:")),
-                                       textInput("textInput_signAs", label = NA),
+                                       textInput("textInput_signAs", label = NULL),
                                        actionButton("button_addReview", "Submit Review", class = "btn-primary", width='100%')
                                        )
                                   )
