@@ -52,7 +52,7 @@ sudo ln -s ~/juno
 
 #### Launch facets-preview (opens in browser)
 ```
-Rscript -e "library(facetsPreview); library(dplyr); facetsPreview::launch_application_browser()"   
+Rscript -e "library(facetsPreview); facetsPreview::launch_application_browser()"   
 ```
 
 
