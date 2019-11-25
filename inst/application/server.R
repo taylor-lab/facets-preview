@@ -23,7 +23,7 @@ function(input, output, session) {
   #' @export verifiy_sshfs_mount
   verifiy_sshfs_mount <- function() {
     if (!grepl(":/juno ", paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
-        grepl("No such file", paste(system("ls /juno/work/ccs/bandlamc/facets_preview_host/facets_refit_watcher/ 2>&1", intern=TRUE), collapse=" "))) {
+        grepl("No such file", paste(system("ls /juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/ 2>&1", intern=TRUE), collapse=" "))) {
       shinyjs::showElement(id= "wellPanel_mountFail")
       showModal(modalDialog( title = "/juno mount not detected", "Re-mount and try again" ))
       return (FALSE)
@@ -63,7 +63,8 @@ function(input, output, session) {
                         dplyr::select(-sample, -path, -facets_suite_qc) %>%
                         dplyr::arrange(desc(date_reviewed)),
                       selection=list(mode='single'),
-                      colnames = c('Review Status', 'Fit', 'Notes', 'Reviewer', 'Date Reviewed', 'Use purity run only?', 'Use edited.cncf.txt?'),
+                      colnames = c('Review Status', 'Fit', 'Notes', 'Reviewer', 'Date Reviewed', 'Use purity run only?', 
+                                   'Use edited.cncf.txt?', 'Reviewer set purity:'),
                       options = list(columnDefs = list(list(className = 'dt-center', targets = 0:6)),
                                      pageLength = 100, dom = 't'),
                       rownames=FALSE, escape = F)
@@ -581,7 +582,7 @@ function(input, output, session) {
     new_diplogR = input$textInput_newDipLogR
     
     refit_name <- glue("/refit_c{new_hisens_c}_pc{new_purity_c}_m{new_m}_diplogR_{new_diplogR}")
-    cmd_script_pfx = "/juno/work/ccs/bandlamc/facets_preview_host/facets_refit_watcher/facets_refit_cmd_"
+    cmd_script_pfx = "/juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/facets_refit_cmd_"
     refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_c{new_hisens_c}_pc{new_purity_c}_m{new_m}_diplogR_{new_diplogR}.sh")
 
     if (any(values$submitted_refit == refit_name)) {
@@ -593,7 +594,7 @@ function(input, output, session) {
     
     refit_dir <- paste0(run_path, refit_name)
     
-    facets_lib_path = fread('/juno/work/ccs/bandlamc/facets_preview_host/facets_versions.dat')[version==facets_version]$r_lib_path
+    facets_lib_path = fread('/juno/work/ccs/bandlamc/facets_review_app/facets_versions.dat')[version==facets_version]$r_lib_path
     
     ### cur_version of facets;
     refit_cmd = glue(paste('/opt/common/CentOS_7-dev/bin/Rscript /juno/work/ccs/bandlamc/software/R_libs/facetsSuite/2.0.1-beta/run-facets-wrapper.R ',
@@ -615,7 +616,7 @@ function(input, output, session) {
   ## check if watcher is running
   {
     cur_time = as.numeric(system(" date +%s ", intern=TRUE))
-    last_mod = as.numeric(system("stat -f%c /juno/work/ccs/bandlamc/facets_preview_host/facets_refit_watcher/watcher.log", intern=TRUE))
+    last_mod = as.numeric(system("stat -f%c /juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/watcher.log", intern=TRUE))
     if ( cur_time - last_mod < 900) {
       shinyjs::showElement(id="div_watcherSuccess")
     } else {

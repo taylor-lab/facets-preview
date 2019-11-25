@@ -80,7 +80,7 @@ metadata_init_quick <- function(sample_id, sample_path) {
     run_dir_exists = "Yes"
   }
   facets_run_dirs = list.dirs(sample_path, full.names=FALSE)
-  facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs)]
+  facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs, ignore.case = T)]
 
   review_file = paste0(sample_path, "/facets_review.manifest")
 
@@ -143,7 +143,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
   print (sample_id)
   print(sample_path)
   ## identify different fits generated for this sample.
-  facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs)]
+  facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs, ignore.case = T)]
 
   ### for each run directory, load metadata.
   for(fi in 1:length(facets_run_dirs)) {
