@@ -48,7 +48,7 @@ ui <-
                  ),
                  wellPanel(
                    h4("Load from IMPACT facets runs maintained by CCS. Note: Refit permissions maybe restricted."),
-                   h5("Eg: P-0004134-T01-IM5, P-0009997-T01-IM5"),
+                   h5("Eg: P-0004134-T01-IM5,P-0044353-T01-IM6,P-0006554-T01-IM5"),
                    textAreaInput("textAreaInput_dmpSamplesInput", label=NULL, value="", rows=1),
                    actionButton("button_dmpSamplesInput", "Retrieve IMPACT run(s)", class = "btn-primary")
                  ),
