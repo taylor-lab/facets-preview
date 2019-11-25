@@ -27,7 +27,7 @@ load_samples <- function(manifest, progress=NA) {
 #' @param progress progress bar from shiny
 #' @return simple metadata data.frame
 #' @import dplyr
-#' @export load_impact_facets
+#' @export load_impact_samples
 load_impact_samples <- function(dmp_ids, progress) {
   metadata <- data.frame()
   ##

@@ -56,7 +56,7 @@ ui <-
                  wellPanel(
                    h4("Paste facets run directories"),
                    h5("Eg: /juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5"),
-                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="/juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5", rows=4),
+                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="", rows=4),
                    actionButton("button_samplesInput", "Retrieve Sample(s)", class = "btn-primary")
                  ),
                  h3("or",style="text-align:center"),
@@ -72,7 +72,8 @@ ui <-
       tabPanel("Samples Manifest",
                value="tabPanel_samplesManifest",
                mainPanel(
-                 wellPanel(downloadLink("download_mapping_file", "Download Mapping File"), style = "background: gray90"),
+                 wellPanel(downloadLink("download_mapping_file", "Download Mapping File"), 
+                           style = "background: gray90"),
                  wellPanel(DT::dataTableOutput("datatable_samples"), style = "background: gray90"),
                  width=12
                )
@@ -176,7 +177,7 @@ ui <-
                                      ),
                                      wellPanel(
                                        h4(strong("Add Manual Review:")),
-                                       radioButtons("radioButtons_reviewStatus", label=NA,
+                                       radioButtons("radioButtons_reviewStatus", label=NULL,
                                                           c("Not Reviewed" = "not_reviewed",
                                                             "No fit available" = "reviewed_no_fit",
                                                             "Acceptable fit available" = "reviewed_acceptable_fit",
@@ -186,7 +187,7 @@ ui <-
                                        conditionalPanel(
                                          condition = "input.radioButtons_reviewStatus == 'reviewed_acceptable_fit' | input.radioButtons_reviewStatus == 'reviewed_best_fit'",
                                          h5(strong("Select best fit (applicable only if best fit selected):")),
-                                         selectInput(inputId = "selectInput_selectBestFit", label=NA,
+                                         selectInput(inputId = "selectInput_selectBestFit", label=NULL,
                                                      choices=c("Not selected")),
                                          checkboxInput(inputId = "checkbox_purity_only", label = "Use purity run for mafAnno", value = FALSE),
                                          checkboxInput(inputId = "checkbox_use_edited_cncf", label = "Use edited.cncf.txt", value = FALSE),

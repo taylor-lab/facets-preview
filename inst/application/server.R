@@ -92,6 +92,8 @@ function(input, output, session) {
       showModal(modalDialog( title = "File not found", paste0( input$textInput_filename) ))
       return(NULL)
     }
+    values$loaded_time = Sys.time()
+    
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
 
     progress <- shiny::Progress$new()
@@ -120,6 +122,8 @@ function(input, output, session) {
                             ))
       return(NULL)
     }
+    values$loaded_time = Sys.time()
+    
     dmp_ids <- unlist(strsplit(dmp_ids, ","))
     
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
@@ -147,6 +151,8 @@ function(input, output, session) {
   observeEvent(input$button_samplesInput, {
     if (!verifiy_sshfs_mount()) { return (NULL) }
 
+    values$loaded_time = Sys.time()
+    
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
 
     progress <- shiny::Progress$new()
@@ -188,6 +194,12 @@ function(input, output, session) {
       paste0('facets_mapping_file_', gsub(' |-|:', '_', Sys.time()), '.txt')
     },
     content = function(file) {
+      
+      elapsed_time = as.integer(difftime(Sys.time(), values$loaded_time, units = 'secs'))
+      showModal(modalDialog( title = "Warning!",
+                             paste0(elapsed_time, 
+                             " seconds have elapsed since reviews were loaded. To ensure capturing most recent reviews, ",
+                             " load samples again from 'Load Samples' page")))
       
       write.table(values$manifest_metadata %>%
                   rowwise %>% 
