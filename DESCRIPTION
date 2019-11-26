@@ -6,6 +6,8 @@ Description: Review and refit FACETS runs
 biocViews: 
 Depends: 
     R (>= 3.2.0),
+    data.table,
+    facetsSuite,
     dplyr,
     glue
 Imports:
