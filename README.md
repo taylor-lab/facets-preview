@@ -24,7 +24,9 @@ Load, review and adjust facets fits
 
 #### Pre-requirement for Mac OS X users: if you don't have X11 (XQuartz) installed, please install it first either via https://www.xquartz.org/ or, if using Homebrew, install `Cairo` with `brew install cairo`
 
+
 ```
+devtools::install_github("taylor-lab/facets-suite", ref = "2.0.1beta_cb")
 devtools::install_github("taylor-lab/facets-preview", ref = "version_2_preRelease")
 ```
 
