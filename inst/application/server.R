@@ -613,7 +613,7 @@ function(input, output, session) {
                            '--facets-lib-path {facets_lib_path} ', 
                            '--counts-file {run_path}/countsMerged____{sample_id}.dat.gz ',
                            '--sample-id {sample_id} ',
-                           '--snp-window-size 250 --normal-depth 35 ',
+                           '--snp-window-size 250 --normal-depth 25 ',
                            '--dipLogR {new_diplogR} ',
                            '--min-nhet {new_m} --purity-min-nhet {new_m} --seed 100 ',
                            '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T ',

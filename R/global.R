@@ -99,10 +99,23 @@ metadata_init_quick <- function(sample_id, sample_path) {
   if ( nrow(reviews) > 0 ){
     num_fits = nrow(reviews %>% filter(!grepl('Not selected', fit_name)) %>% select(fit_name) %>% unique)
 
-    if ('default' %in% reviews$fit_name) {
-      default_fit_name = (reviews %>% filter(fit_name == 'default') %>% arrange(desc(date_reviewed)))$fit_name[1]
-      default_fit_qc = (reviews %>% filter(fit_name == 'default') %>% arrange(desc(date_reviewed)))$facets_suite_qc[1]
+    default_fit_name = 'default'
+    if (!(any(default_fit_name %in% reviews$fit_name))) {
+      default_fit_name =
+        ((reviews %>% 
+        filter(!grepl('^facets_refit|^refit_|^alt_diplogR|Not sel', fit_name, ignore.case = T)))$fit_name %>% 
+        unique)[1]
+      
+      ## if default_fit_name is still not find, just pick any
+      if (is.na(default_fit_name)) {
+        default_fit_name = reviews$fit_name[1]
+      }
     }
+    
+    if (any(default_fit_name %in% reviews$fit_name)) {
+      default_fit_qc = (reviews %>% filter(fit_name == default_fit_name) %>% arrange(desc(date_reviewed)))$facets_suite_qc[1]
+    }
+    
     recent_review = (reviews %>% filter(review_status != 'not_reviewed') %>% arrange(desc(date_reviewed)) %>% head(n=1))
     
     if (nrow(recent_review) > 0) {
