@@ -616,7 +616,7 @@ function(input, output, session) {
                            '--snp-window-size 250 --normal-depth 25 ',
                            '--dipLogR {new_diplogR} ',
                            '--min-nhet {new_m} --purity-min-nhet {new_m} --seed 100 ',
-                           '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T ',
+                           '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T -e ',
                            '--genome hg19 --directory {refit_dir} '))
 
     write(refit_cmd, refit_cmd_file)
