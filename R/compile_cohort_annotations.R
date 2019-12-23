@@ -23,33 +23,36 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
   }
   
   samples_annotated <-
-    adply(samples_to_annotate, 1,
-        function(x) {
-          sample_id = x$sample_id
-          sample_path = x$sample_path
-          
-          ## read from facets.qc.txt
-          qc_file = paste0(sample_path, '/facets_suite.qc.txt')
-          
-          if (!file.exists(qc_file)) { return() }
-          qc_runs = fread(qc_file) %>% filter(fit_name != 'Not selected')
-          fit = ''          
-          if(any(qc_runs$is_best_fit)) {
-            fit = qc_runs %>% filter(is_best_fit) %>% head(n=1)
-          } else if ("default" %in% qc_runs$fit_name) {
-            fit = qc_runs %>% filter(fit_name == 'default') %>% head(n=1)
-          } else {
-            fit = qc_runs %>% head(n=1)
-          }
-          
-          return (fit %>% mutate(found = 1))
-        }, .parallel = parallelize)
-  
-  samples_annotated  <-
-    samples_to_annotate %>% 
+    samples_to_annotate %>%
     select(sample_id, sample_path) %>%
-    left_join(compile_cohort_annotations(samples_to_annotate))
-  
+    left_join(
+      adply(samples_to_annotate, 1,
+          function(x) {
+            sample_id = x$sample_id
+            sample_path = x$sample_path
+            
+            ## read from facets.qc.txt
+            qc_file = paste0(sample_path, '/facets_suite.qc.txt')
+            
+            if (!file.exists(qc_file)) { return() }
+            
+            qc_runs = fread(qc_file) %>% filter(fit_name != 'Not selected')
+            
+            if (nrow(qc_runs) == 0) { return() }
+            
+            fit = ''          
+            if(any(qc_runs$is_best_fit)) {
+              fit = qc_runs %>% filter(is_best_fit) %>% head(n=1)
+            } else if ("default" %in% qc_runs$fit_name) {
+              fit = qc_runs %>% filter(fit_name == 'default') %>% head(n=1)
+            } else {
+              fit = qc_runs %>% head(n=1)
+            }
+            
+            return (fit)
+          }, .parallel = parallelize)
+    )
+
   samples_annotated <-
     samples_annotated %>%
     rowwise %>%
@@ -82,6 +85,7 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
   write.table(arm_level_calls, file=paste0(output_prefix, '.arm_level.txt'), quote=F, row.names=F, sep='\t')
   write.table(gene_level_calls, file=paste0(output_prefix, '.gene_level.txt'), quote=F, row.names=F, sep='\t')
   write.table(ccf_calls, file=paste0(output_prefix, '.ccf.maf'), quote=F, row.names=F, sep='\t')
+  write.table(samples_annotated, file=paste0(output_prefix, '.cohort.txt'), quote=F, row.names=F, sep='\t')
   
   return (samples_annotated)
 }
