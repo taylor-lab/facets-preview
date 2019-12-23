@@ -22,7 +22,7 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
     parallelize = T
   }
   
-  samples_annotated < -
+  samples_annotated <-
     adply(samples_to_annotate, 1,
         function(x) {
           sample_id = x$sample_id
