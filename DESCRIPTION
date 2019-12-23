@@ -26,7 +26,8 @@ Imports:
     lubridate,
     tidyr,
     purrr,
-    tibble
+    tibble,
+    doParallel
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true

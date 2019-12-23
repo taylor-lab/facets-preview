@@ -13,7 +13,14 @@
 #' }
 #' 
 #' @export compile_cohort_annotations
-compile_cohort_annotations <- function(samples_to_annotate, output_prefix) {
+compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncores=1) {
+  
+  parallelize = F
+  if (ncores > 1) { 
+    library(doParallel) 
+    doParallel::registerDoParallel(cores = ncores)
+    parallelize = T
+  }
   
   adply(samples_to_annotate, 1,
         function(x) {
@@ -35,7 +42,7 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix) {
           }
           
           return (fit %>% mutate(found = 1))
-        })
+        }, .parallel = parallelize)
   
   samples_to_annotate <- read.clipboard()
   samples_annotated  <-
