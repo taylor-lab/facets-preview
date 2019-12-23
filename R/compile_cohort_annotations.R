@@ -1,0 +1,88 @@
+#' Compile cohort annotations for given set of facets runs
+#'
+#' Compiles cohort-wide cohort annotations.
+#'
+#' @param samples_to_annotate - data.table with two required columns: sample_id (eg: P-0012345-T01-IM5_P-0012345-N01-IM5) and sample_path (eg: /<path_to_facets_run_for_P-0012345-T01-IM5_P-0012345-N01-IM5) )
+#' @param output_prefix - prefix to which .gene_level.txt, .arm_level.txt and .ccf.maf are writted to
+#'
+#' @return samples_annotated table containing the facets_suite.qc.txt output for the selected fits used to compile the calls
+#' \itemize{
+#'   \item{\code{arm_level_file}:} {arm_level file used}
+#'   \item{\code{gene_level_file}:} {gene_level file used}
+#'   \item{\code{ccf_file}:} {ccf file used}
+#' }
+#' 
+#' @export compile_cohort_annotations
+compile_cohort_annotations <- function(samples_to_annotate, output_prefix) {
+  
+  adply(samples_to_annotate, 1,
+        function(x) {
+          sample_id = x$sample_id
+          sample_path = x$sample_path
+          
+          ## read from facets.qc.txt
+          qc_file = paste0(sample_path, '/facets_suite.qc.txt')
+          
+          if (!file.exists(qc_file)) { return() }
+          qc_runs = fread(qc_file) %>% filter(fit_name != 'Not selected')
+          fit = ''          
+          if(any(qc_runs$is_best_fit)) {
+            fit = qc_runs %>% filter(is_best_fit) %>% head(n=1)
+          } else if ("default" %in% qc_runs$fit_name) {
+            fit = qc_runs %>% filter(fit_name == 'default') %>% head(n=1)
+          } else {
+            fit = qc_runs %>% head(n=1)
+          }
+          
+          return (fit %>% mutate(found = 1))
+        })
+  
+  samples_to_annotate <- read.clipboard()
+  samples_annotated  <-
+    samples_to_annotate %>% 
+    select(sample_id, sample_path) %>%
+    left_join(compile_cohort_annotations(samples_to_annotate))
+  
+  samples_annotated <-
+    samples_annotated %>%
+    rowwise %>%
+    mutate(arm_level_file = paste0(sample_path, '/', fit_name, '/', sample_id, '.arm_level.txt'),
+           gene_level_file = paste0(sample_path, '/', fit_name, '/', sample_id, '.gene_level.txt'),
+           ccf_file = paste0(sample_path, '/', fit_name, '/', sample_id, '.ccf.maf')) %>%
+    mutate(arm_level_file_exists = file.exists(arm_level_file),
+           gene_level_file_exists = file.exists(gene_level_file),
+           ccf_file_exists = file.exists(ccf_file))
+  
+
+  arm_level_calls = rbindlist(sapply((samples_annotated %>% 
+                                       filter(arm_level_file_exists))$arm_level_file,
+                                    fread, 
+                                    simplify = F, 
+                                    USE.NAMES=F))
+
+  gene_level_calls = rbindlist(sapply((samples_annotated %>% 
+                                        filter(gene_level_file_exists))$gene_level_file,
+                                     fread, 
+                                     simplify = F, 
+                                     USE.NAMES=F))
+
+  ccf_calls = rbindlist(sapply((samples_annotated %>% 
+                                  filter(ccf_file_exists))$ccf_file,
+                               fread, 
+                               simplify = F, 
+                               USE.NAMES=F))
+  
+  write.table(arm_level_calls, file=paste0(output_prefix, '.arm_level.txt'), quote=F, row.names=F, sep='\t')
+  write.table(gene_level_calls, file=paste0(output_prefix, '.gene_level.txt'), quote=F, row.names=F, sep='\t')
+  write.table(ccf_calls, file=paste0(output_prefix, '.ccf.maf'), quote=F, row.names=F, sep='\t')
+  
+  return (samples_annotated)
+}
+
+
+
+
+
+
+
+

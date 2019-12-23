@@ -23,7 +23,10 @@ Imports:
     rhandsontable,
     plyr, 
     bit64,
-    lubridate
+    lubridate,
+    tidyr,
+    purrr,
+    tibble
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true

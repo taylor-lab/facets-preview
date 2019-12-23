@@ -150,11 +150,10 @@ metadata_init_quick <- function(sample_id, sample_path) {
 #' @param progress progress bar from shiny
 #' @return description of the facets run
 #' @export metadata_init
-metadata_init <- function(sample_id, sample_path, progress = NULL) {
+metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_file = TRUE) {
   facets_runs <- get_new_facets_runs_df()
   facets_run_dirs = list.dirs(sample_path, full.names=FALSE)
-  print (sample_id)
-  print(sample_path)
+  
   ## identify different fits generated for this sample.
   facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs, ignore.case = T)]
 
@@ -256,8 +255,10 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
     select(sample, path, review_status, fit_name, review_notes, reviewed_by, 
            date_reviewed, facets_suite_qc, use_only_purity_run, use_edited_cncf, reviewer_set_purity) 
 
-  update_review_status_file(sample_path, reviews, T)
-  
+  if (update_qc_file) {
+    update_review_status_file(sample_path, reviews, T)
+  }
+
   ### determine if the sample has at least an acceptable_fit; get the most recent review 
   ### and determine if the status is 'reviewed_best_fit' or 'reviewed_acceptable_fit'
   best_fit = (reviews %>% 
@@ -270,8 +271,10 @@ metadata_init <- function(sample_id, sample_path, progress = NULL) {
   facets_runs$is_best_fit = F
   facets_runs$is_best_fit[which(facets_runs$fit_name == best_fit)] = T
   
-  write.table(facets_runs %>% select(-ends_with("_filter_note")), 
-              file=paste0(sample_path, '/facets_suite.qc.txt'), quote=F, row.names=F, sep='\t')
+  if (update_qc_file) {
+    write.table(facets_runs %>% select(-ends_with("_filter_note")), 
+                file=paste0(sample_path, '/facets_suite.qc.txt'), quote=F, row.names=F, sep='\t')
+  }
   
   facets_runs
 }
