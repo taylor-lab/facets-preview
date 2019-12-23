@@ -22,7 +22,8 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
     parallelize = T
   }
   
-  adply(samples_to_annotate, 1,
+  samples_annotated < -
+    adply(samples_to_annotate, 1,
         function(x) {
           sample_id = x$sample_id
           sample_path = x$sample_path
@@ -44,7 +45,6 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
           return (fit %>% mutate(found = 1))
         }, .parallel = parallelize)
   
-  samples_to_annotate <- read.clipboard()
   samples_annotated  <-
     samples_to_annotate %>% 
     select(sample_id, sample_path) %>%
