@@ -204,6 +204,12 @@ ui <-
                       )
                )
       )
+    ),
+    tabPanel("[sessionInfo]",
+             value="tabPanel_sessionInfo",
+             mainPanel(
+               verbatimTextOutput("verbatimTextOutput_sessionInfo")
+             )
     )
   )
 )

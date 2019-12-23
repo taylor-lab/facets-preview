@@ -16,6 +16,8 @@
 server <-
 function(input, output, session) {
   values <- reactiveValues()
+  
+  output$verbatimTextOutput_sessionInfo <- renderPrint({print(sessionInfo())})
 
   #' helper function for app
   #'
