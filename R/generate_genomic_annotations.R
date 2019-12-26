@@ -13,9 +13,13 @@
 #' }
 #' 
 #' @export generate_genomic_annotations
-generate_genomic_annotations = function(sample_id, sample_path) {
+generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = T) {
   
-  facets_runs_qc <- metadata_init(sample_id, sample_path) %>% data.table
+  if (regenerate_qc) {
+    facets_runs_qc <- metadata_init(sample_id, sample_path) %>% data.table
+  } else {
+    facets_runs_qc <- fread(paste0(sample_path, '/facets_suite.qc.txt'))
+  }
 
   reviews <-
     get_review_status(sample_id, sample_path) %>% 
