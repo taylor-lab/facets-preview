@@ -100,9 +100,10 @@ generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = 
 
     # ccf annotation
     cncf_txt_file = paste0(prefix, '_hisens.cncf.txt')
-    purity = purity_output$purity
+    purity = hisens_output$purity
     if (r$use_only_purity_run) {
       cncf_txt_file = paste0(prefix, '_purity.cncf.txt')
+      purity = purity_output$purity
     }
 
     if (r$use_edited_cncf) {

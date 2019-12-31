@@ -140,7 +140,7 @@ metadata_init_quick <- function(sample_id, sample_path) {
             'reviewed_fit_use_purity' = reviewed_fit_use_purity, 
             'reviewed_fit_use_edited_cncf' = reviewed_fit_use_edited_cncf, 
             'reviewer_set_purity' = reviewer_set_purity,
-            'reviewed_date' = reviewed_date))
+            'reviewed_date' = as.POSIXct(reviewed_date, tz = Sys.timezone())))
 }
 
 #' helper function for app

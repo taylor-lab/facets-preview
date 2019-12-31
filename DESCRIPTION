@@ -27,7 +27,8 @@ Imports:
     tidyr,
     purrr,
     tibble,
-    doParallel
+    doParallel,
+    parallel
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true

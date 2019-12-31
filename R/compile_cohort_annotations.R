@@ -63,29 +63,33 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
            gene_level_file_exists = file.exists(gene_level_file),
            ccf_file_exists = file.exists(ccf_file))
   
-
-  arm_level_calls = rbindlist(sapply((samples_annotated %>% 
-                                       filter(arm_level_file_exists))$arm_level_file,
-                                    fread, 
-                                    simplify = F, 
-                                    USE.NAMES=F))
-
-  gene_level_calls = rbindlist(sapply((samples_annotated %>% 
-                                        filter(gene_level_file_exists))$gene_level_file,
-                                     fread, 
-                                     simplify = F, 
-                                     USE.NAMES=F))
-
-  ccf_calls = rbindlist(sapply((samples_annotated %>% 
-                                  filter(ccf_file_exists))$ccf_file,
-                               fread, 
-                               simplify = F, 
-                               USE.NAMES=F))
-  
-  write.table(arm_level_calls, file=paste0(output_prefix, '.arm_level.txt'), quote=F, row.names=F, sep='\t')
-  write.table(gene_level_calls, file=paste0(output_prefix, '.gene_level.txt'), quote=F, row.names=F, sep='\t')
-  write.table(ccf_calls, file=paste0(output_prefix, '.ccf.maf'), quote=F, row.names=F, sep='\t')
   write.table(samples_annotated, file=paste0(output_prefix, '.cohort.txt'), quote=F, row.names=F, sep='\t')
+  cl <- makeCluster(ncores)
+  
+  ccf_calls = rbindlist(parSapply(cl,
+                                  (samples_annotated %>% filter(ccf_file_exists))$ccf_file,
+                                  fread, 
+                                  simplify = F, 
+                                  USE.NAMES=F), 
+                        fill = T)
+  write.table(ccf_calls, file=paste0(output_prefix, '.ccf.maf'), quote=F, row.names=F, sep='\t')
+  
+  arm_level_calls = rbindlist(parSapply(cl,
+                                        (samples_annotated %>% filter(arm_level_file_exists))$arm_level_file,
+                                        fread, 
+                                        simplify = F, 
+                                        USE.NAMES=F), 
+                              fill = T)
+  write.table(arm_level_calls, file=paste0(output_prefix, '.arm_level.txt'), quote=F, row.names=F, sep='\t')
+  
+  gene_level_calls = rbindlist(parSapply(cl,
+                                        (samples_annotated %>% filter(gene_level_file_exists))$gene_level_file,
+                                        fread, 
+                                        simplify = F, 
+                                        USE.NAMES=F), 
+                              fill = T)
+  write.table(gene_level_calls, file=paste0(output_prefix, '.gene_level.txt'), quote=F, row.names=F, sep='\t')
+  
   
   return (samples_annotated)
 }
