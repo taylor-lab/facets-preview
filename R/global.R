@@ -14,7 +14,7 @@ load_samples <- function(manifest, progress=NA) {
     sample_id = tail(unlist(strsplit(sample_path, "/")), 1)
     
     metadata <- rbind(metadata, as.data.frame.list(metadata_init_quick(sample_id, sample_path), stringsAsFactors = F))
-    if (!is.na(progress)) {
+    if (!is.null(progress)) {
       progress$inc(1/length(manifest), detail = paste(" ", i, "/", length(manifest)))
     }
   }
@@ -93,7 +93,7 @@ metadata_init_quick <- function(sample_id, sample_path) {
   reviewed_fit_use_purity = F
   reviewed_fit_use_edited_cncf = F
   reviewer_set_purity = NA
-  reviewed_date = ''
+  reviewed_date = NA
   
   reviews <- load_reviews(sample_id, sample_path)
   if ( nrow(reviews) > 0 ){
