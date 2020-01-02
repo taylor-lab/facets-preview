@@ -2,6 +2,10 @@
 # facets-preview
 Load, review and adjust facets fits from your local machine (mac OS only)
 
+- [Release Notes](##Release-notes)
+- [Installation](##Installation)
+- [Usage](##Usage)
+
 ## Release notes
 
 #### v2.0.0a 
