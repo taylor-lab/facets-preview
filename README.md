@@ -2,10 +2,26 @@
 # facets-preview
 Load, review and adjust facets fits from your local machine (mac OS only)
 
-- [Release Notes](##Release-notes)
-- [Installation](##Installation)
-- [Usage](##Usage)
+## Table of Contents
+- [Release Notes](#release-notes)
+- [Installation](#installation)
+- [Usage](#usage)
+  * [0. Launching `facets-preview`](#launching-facets-preview) 
+  * [1. Input requirements](#input-requirements) 
+  * [2. Sample `facets` command](#sample-command-to-generate) 
+  * [3. Loading facets runs](#loading-facets-runs) 
+  * [4. Samples manifest](#samples-manifest) 
+  * [5. Review fits](#review-fits) 
+    + [5.1 Submit refits](#submit-refits)
+    + [5.2 QC Summary](#qc-summary)	
+    + [5.3 Close Up](#close-up)
+    + [5.4 Segments](#segments)	
+    + [5.5 Segments (editable)](#segments-editable)
+    + [5.6 Review notes](#review-notes)	
+  * [6. Generating genomic annotations](#generating-genomic-annotations) 
+  * [7. Compile cohort-level genomic annotations](#compile-cohort-level-genomic-annotations) 
 
+   
 ## Release notes
 
 #### v2.0.0a 
@@ -98,7 +114,7 @@ Rscript -e "library(facetsPreview); facetsPreview::launch_application_browser()"
 ### 3. Loading facets runs
 <img src="https://github.com/taylor-lab/facets-preview/blob/version_2_preRelease/images/facets-preview-1.png?raw=true" width="900">
 
-### 4. Sample manifest 
+### 4. Samples manifest 
 <img src="https://github.com/taylor-lab/facets-preview/blob/version_2_preRelease/images/facets-preview-2.png?raw=true" width="900">
 
 ### 5. Review fits
