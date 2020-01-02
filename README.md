@@ -4,9 +4,9 @@ Load, review and adjust facets fits from your local machine (mac OS only)
 - [Release Notes](#release-notes)
 - [Installation](#installation)
 - [Usage](#usage)
-  * [0. Launching preview](#launching-preview) 
-  * [1. Input requirements](#input-requirements) 
-  * [2. Sample `facets` command](#sample-command-to-generate-facets-output-compatible-with-preview) 
+  * [0. Launching `facets-preview`](##launching-facets-preview) 
+  * [1. Input requirements](##input-requirements) 
+  * [2. Sample `facets` command](##sample-command-to-generate-facets-output-compatible-with-facets-preview) 
   * [3. Loading facets runs](#loading-facets-runs) 
   * [4. Samples manifest](#samples-manifest) 
   * [5. Review fits](#review-fits) 
@@ -72,7 +72,7 @@ devtools::install_github("taylor-lab/facets-preview", ref = "version_2_preReleas
 
 ## Usage
 
-### 0. Launching preview
+### 0. Launching `facets-preview`
 ```
 Rscript -e "library(facetsPreview); facetsPreview::launch_application_browser()"   
 ```
@@ -87,7 +87,7 @@ Rscript -e "library(facetsPreview); facetsPreview::launch_application_browser()"
 * the counts file name should be: `countsMerged____<sample_name>.dat.gz`
 * `.Rdata`, `.cncf.txt`, `.png` and `.out` files are required to load the runs
 
-### 2. Sample command to generate facets output compatible with preview
+### 2. Sample command to generate facets output compatible with `facets-preview`
 ```
 # install facetsSuite v2
 # use run-facets-wrapper.sh in the facets-suite github repo
