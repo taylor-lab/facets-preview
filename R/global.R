@@ -93,7 +93,7 @@ metadata_init_quick <- function(sample_id, sample_path) {
   reviewed_fit_use_purity = F
   reviewed_fit_use_edited_cncf = F
   reviewer_set_purity = NA
-  reviewed_date = ''
+  reviewed_date = NA
   
   reviews <- load_reviews(sample_id, sample_path)
   if ( nrow(reviews) > 0 ){
@@ -140,7 +140,7 @@ metadata_init_quick <- function(sample_id, sample_path) {
             'reviewed_fit_use_purity' = reviewed_fit_use_purity, 
             'reviewed_fit_use_edited_cncf' = reviewed_fit_use_edited_cncf, 
             'reviewer_set_purity' = reviewer_set_purity,
-            'reviewed_date' = as.POSIXct(reviewed_date, tz = Sys.timezone())))
+            'reviewed_date' = as.POSIXct(ifelse(reviewed_date == '', NA, reviewed_date), tz = Sys.timezone())))
 }
 
 #' helper function for app
