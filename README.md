@@ -1,14 +1,12 @@
 
 # facets-preview
 Load, review and adjust facets fits from your local machine (mac OS only)
-
-## Table of Contents
 - [Release Notes](#release-notes)
 - [Installation](#installation)
 - [Usage](#usage)
   * [0. Launching `facets-preview`](#launching-facets-preview) 
   * [1. Input requirements](#input-requirements) 
-  * [2. Sample `facets` command](#sample-command-to-generate) 
+  * [2. Sample `facets` command](#sample-command-to-generate-facets-output-compatible-with-facets-preview) 
   * [3. Loading facets runs](#loading-facets-runs) 
   * [4. Samples manifest](#samples-manifest) 
   * [5. Review fits](#review-fits) 
