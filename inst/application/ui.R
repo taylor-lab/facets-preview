@@ -56,7 +56,7 @@ ui <-
                  wellPanel(
                    h4("Paste facets run directories"),
                    h5("Eg: /juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5"),
-                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="", rows=4),
+                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="/juno/work/ccs/bandlamc/tmp/P-0007584-T01-IM5_P-0007584-N01-IM5/", rows=4),
                    actionButton("button_samplesInput", "Retrieve Sample(s)", class = "btn-primary")
                  ),
                  h3("or",style="text-align:center"),
@@ -114,14 +114,35 @@ ui <-
                                               HTML(" Watcher status: <i class=\"fa fa-check\" aria-hidden=\"true\"></i>"), style="color: green")),
                           shinyjs::hidden(div(id="div_watcherFail",
                                               HTML(" Watcher status: <i class=\"fa fa-times\" aria-hidden=\"true\"></i>"), style="color: red")),
-                          textInput("textInput_newDipLogR", "dipLogR "),
-                          textInput("textInput_newPurityCval", "purity cval "),
-                          textInput("textInput_newHisensCval", "hisens cval "),
-                          textInput("textInput_newMinNHet", "min.nhet "),
-
+                          textInput("textInput_newDipLogR", value = -0.123,"dipLogR "),
+                          textInput("textInput_newPurityCval", value = 135, "purity cval "),
+                          textInput("textInput_newHisensCval", value = 55, "hisens cval "),
+                          div(style="display:inline-block",
+                            actionLink("link_advancedOptions", "show advanced options"),
+                            style="align:right; padding:10px"),
+                          shinyjs::hidden(
+                            wellPanel(id = "wellPanel_advancedOptions",
+                                      style = "border: 0px",
+                                      textInput("textInput_newPurityMinNHet", "purity min nhet "),
+                                      textInput("textInput_newHisensMinNHet", "hisens min nhet "),
+                                      textInput("textInput_newSnpWindowSize", "snp window size "),
+                                      textInput("textInput_newNormalDepth", "normal depth "),
+                                      selectInput("selectInput_newFacetsLib", "facets version:",
+                                                  c("use current run's facets version" = "use current run's facets version"))
+                            )
+                          ),
+                          # Depracating this; keep this as reference, in case, for future.
+                          # bootstrapPage(
+                          #   div(style="display:inline-block; padding: 10px 3px 10px 3px;",
+                          #       tags$label('purity_cval', `for` = "purity_cval_input"), 
+                          #       tags$input(id = "purity_cval_input", type = "text", value = '',class="input-xlarge"),
+                          #       tags$head(tags$style(type="text/css", "#purity_cval_input {width: 75px}")),
+                          #       tags$label(',   hisens_cval', `for` = "hisens_cval_input"), 
+                          #       tags$input(id = "hisens_cval_input", type = "text", value = '',class="input-xlarge"),
+                          #       tags$head(tags$style(type="text/css", "#hisens_cval_input {width: 75px}")))),
                           actionButton("button_refit", "Run", class = "btn-primary", width = '100%'),
                           tags$small(paste0(
-                            "Note: Click 'Run' to submit re-fit job onto luna.  Takes upto a min for the job to finish."
+                            "Note: Click 'Run' to submit re-fit job onto juno  Can take a few mins for the job to finish."
                           )),
                           style = "padding: 10px; "
                         )
@@ -196,7 +217,7 @@ ui <-
                                        h4(strong("Review Notes:")),
                                        textAreaInput("textAreaInput_reviewNote", label=NULL, value="", rows=1),
                                        h4(strong("Reviewed By:")),
-                                       textInput("textInput_signAs", label = NULL),
+                                       verbatimTextOutput("verbatimTextOutput_signAs"),
                                        actionButton("button_addReview", "Submit Review", class = "btn-primary", width='100%')
                                        )
                                   )

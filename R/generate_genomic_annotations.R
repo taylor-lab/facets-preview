@@ -144,7 +144,9 @@ generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = 
     ccf_maf$cncf_file_used = cncf_txt_file
 
     write.table(ccf_maf, file=paste0(sample_path, '/', r$fit_name, '/', sample_id, '.ccf.maf'), quote=F, row.names=F, sep='\t')
-
+  
+    metadata_init(sample_id, sample_path) %>% data.table
+    
   }, .parallel = F)
 }
 

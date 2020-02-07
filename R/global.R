@@ -28,13 +28,13 @@ load_samples <- function(manifest, progress=NA) {
 #' @return simple metadata data.frame
 #' @import dplyr
 #' @export load_impact_samples
-load_impact_samples <- function(dmp_ids, progress) {
+load_impact_samples <- function(dmp_ids, repo_manifest_dir, progress) {
   metadata <- data.frame()
   ##
   ## Load facets manifest files
   ##
   manifest_file <-
-    (data.frame(manifest_file = list.files('/juno/work/ccs/resources/impact/facets/manifests/', 
+    (data.frame(manifest_file = list.files(repo_manifest_dir, 
                                            full.names = T,
                                            recursive=F), 
                 stringsAsFactors = F) %>%

@@ -1,0 +1,19 @@
+{
+  "facets_repo_manifest": "/juno/work/ccs/resources/impact/facets/manifests/",
+  "watcher_dir": "/juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/",
+  "run_facets_wrapper": "/juno/work/ccs/bandlamc/software/R_libs/facetsSuite/2.0.2/run-facets-wrapper.R",
+  "facets_lib": [
+    {
+      "version": "0.5.6",
+      "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facets/0.5.6/"
+    },
+    {
+      "version": "0.5.14",
+      "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facets/0.5.14/"
+    },
+    {
+      "version": "0.6.0",
+      "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facets/0.6.0/"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 #'
 #' Compiles cohort-wide cohort annotations.
 #'
-#' @param samples_to_annotate - data.table with two required columns: sample_id (eg: P-0012345-T01-IM5_P-0012345-N01-IM5) and sample_path (eg: /<path_to_facets_run_for_P-0012345-T01-IM5_P-0012345-N01-IM5) )
+#' @param samples_to_annotate - data.table with two required columns: sample_id (eg: P-0012345-T01-IM5_P-0012345-N01-IM5), sample_path (eg: /<path_to_facets_run_for_P-0012345-T01-IM5_P-0012345-N01-IM5) and one optional column: fit_to_use (eg: refit_c50_pc100_diplogR_-0.13 or simply NA)
 #' @param output_prefix - prefix to which .gene_level.txt, .arm_level.txt and .ccf.maf are writted to
 #'
 #' @return samples_annotated table containing the facets_suite.qc.txt output for the selected fits used to compile the calls
@@ -22,14 +22,23 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
     parallelize = T
   }
   
+  if (!("fit_to_use" %in% cols(samples_to_annotate))) {
+    samples_to_annotate$fit_to_use = NA
+  }
+  
   samples_annotated <-
     samples_to_annotate %>%
-    select(sample_id, sample_path) %>%
+    select(sample_id, sample_path, fit_to_use) %>%
     left_join(
       adply(samples_to_annotate, 1,
           function(x) {
             sample_id = x$sample_id
             sample_path = x$sample_path
+            fit_to_use = x$fit_to_use
+            
+            if (!is.na(fit_to_use)) {
+              return(fit_to_use)
+            }
             
             ## read from facets.qc.txt
             qc_file = paste0(sample_path, '/facets_suite.qc.txt')

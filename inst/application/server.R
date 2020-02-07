@@ -15,21 +15,50 @@
 
 server <-
 function(input, output, session) {
-  values <- reactiveValues()
-  
+  values <- reactiveValues(config_file = ifelse( "facets_preview_config_file" %in% ls(), facets_preview_config_file, "<not set>"))
   output$verbatimTextOutput_sessionInfo <- renderPrint({print(sessionInfo())})
-
+  output$verbatimTextOutput_signAs <- renderText({paste0(system('whoami', intern = T))})
+  
+  observe({
+    values$config_file = ifelse( exists("facets_preview_config_file"), facets_preview_config_file, "<not set>")
+    if (!suppressWarnings(file.exists(values$config_file))) {
+      showModal(modalDialog( title = "config file not found",  
+                             'config file not found. Expects \"facets_preview_config_file\" variable in .Rprofile',
+                             easyClose = TRUE))
+      stopApp(1)
+    }
+    values$config = configr::read.config(values$config_file)
+    
+    # check if /juno is mounted
+    if (!verify_sshfs_mount(values$config$watcher_dir)) {
+      return(NULL)
+    }
+    
+    
+    ## check if watcher is running
+    {
+      cur_time = as.numeric(system(" date +%s ", intern=TRUE))
+      last_mod = as.numeric(system(paste0("stat -f%c ", values$config$watcher_dir, "/watcher.log"), intern=TRUE))
+      if ( cur_time - last_mod < 900) {
+        shinyjs::showElement(id="div_watcherSuccess")
+      } else {
+        shinyjs::showElement(id="div_watcherFail")
+      }
+    }
+  })
+  
   #' helper function for app
   #'
   #' @return checks for mount
-  #' @export verifiy_sshfs_mount
-  verifiy_sshfs_mount <- function() {
+  #' @export verify_sshfs_mount
+  verify_sshfs_mount <- function(watcher_dir) {
     if (!grepl(":/juno ", paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
-        grepl("No such file", paste(system("ls /juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/ 2>&1", intern=TRUE), collapse=" "))) {
+        grepl("No such file", paste(system(paste0("ls ", watcher_dir, " 2>&1"), intern=TRUE), collapse=" "))) {
       shinyjs::showElement(id= "wellPanel_mountFail")
       showModal(modalDialog( title = "/juno mount not detected", "Re-mount and try again" ))
       return (FALSE)
     }
+
     shinyjs::hideElement(id= "wellPanel_mountFail")
     return(TRUE)
   }
@@ -73,19 +102,16 @@ function(input, output, session) {
       })
     }
   }
+  
   shinyjs::hideElement("button_saveChanges")
+  
   observeEvent(input$button_mountFailRefresh, {
-    verifiy_sshfs_mount()
+    verify_sshfs_mount(values$config$watcher_dir)
     return(NULL)
   })
 
-  # check if /juno is mounted
-  if (!verifiy_sshfs_mount()) {
-    return(NULL)
-  }
-
   observeEvent(input$button_fileInput, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
 
     if ( is.null(input$textInput_filename) ||
          !file.exists(input$textInput_filename) ||
@@ -94,6 +120,7 @@ function(input, output, session) {
       showModal(modalDialog( title = "File not found", paste0( input$textInput_filename) ))
       return(NULL)
     }
+    
     values$loaded_time = Sys.time()
     
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
@@ -112,7 +139,7 @@ function(input, output, session) {
   })
 
   observeEvent(input$button_dmpSamplesInput, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     
     # make sure the sample input string is the right format
     dmp_ids <- gsub(' |\\s*,\\s*$', '', input$textAreaInput_dmpSamplesInput)
@@ -134,7 +161,7 @@ function(input, output, session) {
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
     
-    values$manifest_metadata <- load_impact_samples(dmp_ids, progress)
+    values$manifest_metadata <- load_impact_samples(dmp_ids, values$config$facets_repo_manifest, progress)
     
     num_samples_queried = length(dmp_ids)
     num_samples_found = nrow(values$manifest_metadata)
@@ -151,7 +178,7 @@ function(input, output, session) {
   })
 
   observeEvent(input$button_samplesInput, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
 
     values$loaded_time = Sys.time()
     
@@ -221,7 +248,7 @@ function(input, output, session) {
   )
   
   observeEvent(input$datatable_samples_rows_selected, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     selected_sample = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,1]), collapse="")
     selected_sample_path = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,2]), collapse="")
     selected_sample_num_fits = values$manifest_metadata[input$datatable_samples_rows_selected,4]
@@ -286,9 +313,22 @@ function(input, output, session) {
                 row.names=F)
     close(clip)
   })
+  
+  observeEvent(input$link_advancedOptions, {
+    if (input$selectInput_selectFit == "Not selected"){
+     # return(NULL)
+    }
+    
+    updateSelectInput(session, "selectInput_newFacetsLib",
+                      choices = as.list(c("use current run's facets version", values$config$facets_lib$version)),
+                      selected = "use current run's facets version"
+    )
+    shinyjs::toggleElement(id='wellPanel_advancedOptions')
+    #shinyjs::showElement(id="wellPanel_advancedOptions")
+  })
 
   observeEvent(input$selectInput_selectFit, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     output$verbatimTextOutput_runParams <- renderText({})
     output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
@@ -362,11 +402,28 @@ function(input, output, session) {
     
     review_status = input$radioButtons_reviewStatus
     fit_name = input$selectInput_selectBestFit[1]
-    signed_as = input$textInput_signAs[1]
+    signed_as = system('whoami', intern=T)
     note = input$textAreaInput_reviewNote[1]
     use_only_purity_run = input$checkbox_purity_only[1]
     use_edited_cncf = input$checkbox_use_edited_cncf[1]
     reviewer_set_purity = input$textInput_purity[1]
+    
+    ### make sure the edited cncf file exists
+    if (use_edited_cncf) {
+      if (use_only_purity_run) {
+        run_prefix = selected_run$purity_run_prefix[1]
+      } else {
+        run_prefix = selected_run$hisens_run_prefix[1]
+      }
+      cncf_filename = paste0(run_prefix, ".cncf.edited.txt")
+      if (!file.exists(cncf_filename)) {
+        showModal(modalDialog(
+          title = "Failed", paste0("Review not added. CNCF file assigned to this review does not exist. ",
+                                             cncf_filename)
+        ))
+        return(NULL)
+      }
+    }
     
     df <- get_review_status(sample, path)
     if (nrow(df) > 0){
@@ -400,7 +457,7 @@ function(input, output, session) {
   })
 
   observeEvent(input$radioGroupButton_fitType, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
 
     if (input$selectInput_selectFit == "Not selected") {
       return(NULL)
@@ -421,20 +478,17 @@ function(input, output, session) {
     shinyjs::hideElement("button_saveChanges")
     output$verbatimTextOutput_runParams <- renderText({
       if (input$radioGroupButton_fitType == "Hisens") {
-        paste0("Seed: ", selected_run$hisens_run_Seed[1], ", ",
-               "cval: ", selected_run$hisens_run_cval[1], ", ",
-               "min.nhet: ", selected_run$hisens_run_nhet[1], ", ",
-               "Purity: ", selected_run$hisens_run_Purity[1], ", ",
-               "Ploidy: ", selected_run$hisens_run_Ploidy[1], ", ",
-               "dipLogR: ", selected_run$hisens_run_dipLogR[1]
+        paste0("purity: ", selected_run$hisens_run_Purity[1], ", ",
+               "ploidy: ", selected_run$hisens_run_Ploidy[1], ", ",
+               "dipLogR: ", selected_run$hisens_run_dipLogR[1], "\n",
+               "facets_lib: ", selected_run$hisens_run_version[1]
+               
         )
       } else {
-        paste0("Seed: ", selected_run$purity_run_Seed[1], ", ",
-               "cval: ", selected_run$purity_run_cval[1], ", ",
-               "min.nhet: ", selected_run$purity_run_nhet[1], ", ",
-               "Purity: ", selected_run$purity_run_Purity[1], ", ",
-               "Ploidy: ", selected_run$purity_run_Ploidy[1], ", ",
-               "dipLogR: ", selected_run$purity_run_dipLogR[1]
+        paste0("purity: ", selected_run$purity_run_Purity[1], ", ",
+               "ploidy: ", selected_run$purity_run_Ploidy[1], ", ",
+               "dipLogR: ", selected_run$purity_run_dipLogR[1], "\n",
+               "facets_lib: ", selected_run$purity_run_version[1]
         )
       }
     })
@@ -530,7 +584,7 @@ function(input, output, session) {
   })
 
   observeEvent(input$button_closeUpView, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     if (input$selectInput_selectFit == "Not selected") {
       output$verbatimTextOutput_runParams <- renderText({})
       output$verbatimTextOutput_altBalLogR <- renderText({})
@@ -570,34 +624,63 @@ function(input, output, session) {
 
 
   observeEvent(input$button_refit, {
-    if (!verifiy_sshfs_mount()) { return (NULL) }
+    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     if (input$selectInput_selectFit == "Not selected" ||
         is.na(suppressWarnings(as.integer(input$textInput_newDipLogR))) ||
         is.na(suppressWarnings(as.integer(input$textInput_newPurityCval))) ||
-        is.na(suppressWarnings(as.integer(input$textInput_newHisensCval))) ||
-        is.na(suppressWarnings(as.integer(input$textInput_newMinNHet))))
+        is.na(suppressWarnings(as.integer(input$textInput_newHisensCval))))
     {
       showModal(modalDialog(
-        title = "Not submitted", paste0("Need all four parameters for refit.")
+        title = "Not submitted", paste0("Need all three parameters for refit.")
       ))
       return(NULL)
     }
 
     selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
     sample_id = selected_run$tumor_sample_id[1]
-    facets_version = selected_run$hisens_run_version[1]
-    if(is.na(facets_version)) {
-      facets_version = selected_run$purity_run_version[1]
-    }
+    
     run_path = selected_run$path[1]
     new_purity_c = input$textInput_newPurityCval
     new_hisens_c = input$textInput_newHisensCval
-    new_m = input$textInput_newMinNHet
+    
+    new_purity_m = input$textInput_newPurityMinNHet
+    new_hisens_m = input$textInput_newHisensMinNHet
+    new_normal_depth = input$textInput_newNormalDepth
+    new_snp_window_size = input$textInput_newSnpWindowSize
+    new_facets_lib = input$selectInput_newFacetsLib
     new_diplogR = input$textInput_newDipLogR
     
-    refit_name <- glue("/refit_c{new_hisens_c}_pc{new_purity_c}_m{new_m}_diplogR_{new_diplogR}")
-    cmd_script_pfx = "/juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/facets_refit_cmd_"
-    refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_c{new_hisens_c}_pc{new_purity_c}_m{new_m}_diplogR_{new_diplogR}.sh")
+    default_run_facets_version = selected_run$hisens_run_version[1]
+    if(is.na(facets_version_to_use)) {
+      default_run_facets_version = selected_run$purity_run_version[1]
+    }
+    
+    facets_version_to_use = new_facets_lib
+    if (grepl('use current', new_facets_lib)) {
+      facets_version_to_use = default_run_facets_version
+    }
+    
+    supported_facets_versions = values$config$facets_lib
+    if (!(facets_version_to_use %in% supported_facets_versions$version)) {
+      showModal(modalDialog(
+        title="Not submitted", 
+        paste0("Current version of facets-preview does not support refits using facets version: ", facets_version_to_use)
+      ))
+      return(NULL)
+    }
+    
+    name_tag = (paste0("c{new_hisens_c}_pc{new_purity_c}_diplogR_{new_diplogR}",
+                             ifelse(!is.na(new_purity_m) && new_purity_m != '', "_pm{new_purity_m}", ""),
+                             ifelse(!is.na(new_hisens_m) && new_hisens_m != '', "_m{new_hisens_m}", ""),
+                             ifelse(!is.na(new_normal_depth) && new_normal_depth != '', "_nd{new_normal_depth}", ""),
+                             ifelse(!is.na(new_snp_window_size) && new_snp_window_size != '', "_n{new_snp_window_size}", ""),
+                             ifelse(facets_version_to_use != default_run_facets_version, '_v{facets_version_to_use}', '')
+                           ))
+
+    name_tag = glue(name_tag)
+    refit_name <- glue('/refit_{name_tag}')
+    cmd_script_pfx = paste0(values$config$watcher_dir, "/facets_refit_cmd_")
+    refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_{name_tag}.sh")
 
     if (any(values$submitted_refit == refit_name)) {
       showModal(modalDialog(
@@ -608,34 +691,26 @@ function(input, output, session) {
     
     refit_dir <- paste0(run_path, refit_name)
     
-    facets_lib_path = fread('/juno/work/ccs/bandlamc/facets_review_app/facets_versions.dat')[version==facets_version]$r_lib_path
+    facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
     
-    ### cur_version of facets;
-    refit_cmd = glue(paste('/opt/common/CentOS_7-dev/bin/Rscript /juno/work/ccs/bandlamc/software/R_libs/facetsSuite/2.0.1-beta/run-facets-wrapper.R ',
+    refit_cmd = glue(paste('/opt/common/CentOS_7-dev/bin/Rscript  ',
+                           values$config$run_facets_wrapper, ' ',
                            '--facets-lib-path {facets_lib_path} ', 
                            '--counts-file {run_path}/countsMerged____{sample_id}.dat.gz ',
                            '--sample-id {sample_id} ',
-                           '--snp-window-size 250 --normal-depth 25 ',
+                           ifelse(!is.na(new_snp_window_size) && new_snp_window_size != '', '--snp-window-size {new_snp_window_size} ', ''),
+                           ifelse(!is.na(new_normal_depth) && new_normal_depth != '', '--normal-depth {new_normal_depth} ', ''),
                            '--dipLogR {new_diplogR} ',
-                           '--min-nhet {new_m} --purity-min-nhet {new_m} --seed 100 ',
+                           ifelse(!is.na(new_hisens_m) && new_hisens_m != '', '--min-nhet {new_hisens_m} ', ''),
+                           ifelse(!is.na(new_purity_m) & new_purity_m != '', '--purity-min-nhet {new_purity_m} ', ''),
+                           '--seed 100 ',
                            '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T -e ',
                            '--genome hg19 --directory {refit_dir} '))
-
+    
     write(refit_cmd, refit_cmd_file)
     showModal(modalDialog(
       title = "Job submitted!", paste0("Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
     ))
     values$submitted_refit <- c(values$submitted_refit, refit_name)
   })
-
-  ## check if watcher is running
-  {
-    cur_time = as.numeric(system(" date +%s ", intern=TRUE))
-    last_mod = as.numeric(system("stat -f%c /juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/watcher.log", intern=TRUE))
-    if ( cur_time - last_mod < 900) {
-      shinyjs::showElement(id="div_watcherSuccess")
-    } else {
-      shinyjs::showElement(id="div_watcherFail")
-    }
-  }
 }
