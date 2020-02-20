@@ -28,34 +28,25 @@ load_samples <- function(manifest, progress=NA) {
 #' @return simple metadata data.frame
 #' @import dplyr
 #' @export load_impact_samples
-load_impact_samples <- function(dmp_ids, repo_manifest_dir, progress) {
+load_impact_samples <- function(dmp_ids, manifest_file, progress) {
   metadata <- data.frame()
   ##
   ## Load facets manifest files
   ##
-  manifest_file <-
-    (data.frame(manifest_file = list.files(repo_manifest_dir, 
-                                           full.names = T,
-                                           recursive=F), 
-                stringsAsFactors = F) %>%
-       dplyr::filter(grepl("impact_facets_manifest_.*gz", manifest_file)) %>%
-       dplyr::mutate(date = ymd(gsub(".*impact_facets_manifest_|\\.txt\\.gz", "", manifest_file))) %>%
-       dplyr::filter(!is.na(date)) %>%
-       dplyr::arrange(desc(date)) %>%
-       dplyr::filter(file.exists(manifest_file)))$manifest_file[1]
-  if (is.na(manifest_file)) {
+  if (is.na(manifest_file) | !file.exists(manifest_file) | countLines(manifest_file) == 0) {
+    stop(paste0('Aborting! manifest file does not exist. ', manifest_file))
     return(metadata)
   }
-  
+
   impact_manifest <- 
-    fread(paste0('gzip -dc ', manifest_file)) %>% 
+    fread(cmd=paste0('gzip -dc ', manifest_file)) %>% 
     dplyr::filter(tumor_sample %in% dmp_ids) %>% 
     unique
   
   if (nrow(impact_manifest) == 0) {
     return(metadata)
   }
-  
+
   for(i in 1:dim(impact_manifest)[1]) {
     sample_id = impact_manifest$tag[i]
     sample_path = impact_manifest$run_prefix[i]
@@ -308,7 +299,7 @@ load_reviews <- function(sample_id, sample_path) {
 #' @export get_review_status
 get_review_status <- function(sample_id, sample_path) {
   review_file = paste0(sample_path, "/facets_review.manifest")
-  if ( !file.exists( review_file )) {
+  if ( !file.exists( review_file ) || file.size(review_file) == 0 || countLines(review_file) < 2 ) {
     df <- data.frame(
       sample = character(),
       path = character(),

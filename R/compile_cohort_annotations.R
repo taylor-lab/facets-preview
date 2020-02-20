@@ -11,7 +11,7 @@
 #'   \item{\code{gene_level_file}:} {gene_level file used}
 #'   \item{\code{ccf_file}:} {ccf file used}
 #' }
-#' 
+#'  
 #' @export compile_cohort_annotations
 compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncores=1) {
   

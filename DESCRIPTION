@@ -29,7 +29,8 @@ Imports:
     tibble,
     doParallel,
     parallel,
-    configr
+    configr,
+    R.libs
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true

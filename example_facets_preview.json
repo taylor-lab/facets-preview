@@ -1,5 +1,18 @@
 {
-  "facets_repo_manifest": "/juno/work/ccs/resources/impact/facets/manifests/",
+  "repo": [
+    {
+      "name": "CCS IMPACT facets repository",
+      "manifest_file": "/juno/work/ccs/resources/impact/facets/manifests/impact_facets_manifest_latest.txt.gz",
+      "default": "T",
+      "sample_name_format": "^P-\\d{7}-T\\d+-IM\\d(,P-\\d{7}-T\\d+-IM\\d)*$"
+    },
+    {
+      "name": "CB Test Repo",
+      "manifest_file": "/juno/work/ccs/bandlamc/other_stuff/facets_qc/facets_sandbox/manifests/impact_facets_qc_2020_02_17b.txt.gz",
+      "default": "F",
+      "sample_name_format": ""
+    }
+  ],
   "watcher_dir": "/juno/work/ccs/bandlamc/facets_review_app/facets_refit_watcher/",
   "run_facets_wrapper": "/juno/work/ccs/bandlamc/software/R_libs/facetsSuite/2.0.2/run-facets-wrapper.R",
   "facets_lib": [
@@ -14,6 +27,22 @@
     {
       "version": "0.6.0",
       "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facets/0.6.0/"
+    }
+  ],
+  "facets_suite_lib": [
+    {
+      "version": "2.0.0",
+      "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facetsSuite/2.0.0/"
+    },
+    {
+      "version": "2.0.2",
+      "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facetsSuite/2.0.2/"
+    }
+  ],
+  "facets_qc_ver": [
+    {
+      "version": "1.0.0",
+      "lib_path": "/juno/work/ccs/bandlamc/software/R_libs/facetsPreview/0.5.6/"
     }
   ]
 }

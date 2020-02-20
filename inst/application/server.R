@@ -15,11 +15,11 @@
 
 server <-
 function(input, output, session) {
-  values <- reactiveValues(config_file = ifelse( "facets_preview_config_file" %in% ls(), facets_preview_config_file, "<not set>"))
+  values <- reactiveValues(config_file = ifelse( exists("facets_preview_config_file"), facets_preview_config_file, "<not set>"))
   output$verbatimTextOutput_sessionInfo <- renderPrint({print(sessionInfo())})
   output$verbatimTextOutput_signAs <- renderText({paste0(system('whoami', intern = T))})
   
-  observe({
+  observe({  
     values$config_file = ifelse( exists("facets_preview_config_file"), facets_preview_config_file, "<not set>")
     if (!suppressWarnings(file.exists(values$config_file))) {
       showModal(modalDialog( title = "config file not found",  
@@ -29,11 +29,14 @@ function(input, output, session) {
     }
     values$config = configr::read.config(values$config_file)
     
+    updateSelectInput(session, "selectInput_repo",
+                      choices = as.list(c("none", values$config$repo$name)),
+                      selected = "None")
+                      
     # check if /juno is mounted
     if (!verify_sshfs_mount(values$config$watcher_dir)) {
       return(NULL)
     }
-    
     
     ## check if watcher is running
     {
@@ -45,6 +48,25 @@ function(input, output, session) {
         shinyjs::showElement(id="div_watcherFail")
       }
     }
+  })
+  
+  observeEvent(input$link_choose_repo, {
+    # Change the following line for more examples
+    showModal(
+      modalDialog(
+        selectInput("selectInput_repo", "choose respository:", values$config$repo$name),
+        footer = tagList(
+          actionButton("actionButton_selectRepo", "Submit"),
+          modalButton('Dismiss'))
+      )
+    )
+  })
+  
+  observeEvent(input$actionButton_selectRepo, {
+    values$selected_repo = as.list(values$config$repo %>% filter(name == input$selectInput_repo) %>% head(n=1))
+    html("element_repo_name", paste0('Selected repository: ', values$selected_repo$name))
+    html("element_repo_manifest", paste0('manifest file: ', values$selected_repo$manifest_file))
+    removeModal()
   })
   
   #' helper function for app
@@ -110,41 +132,34 @@ function(input, output, session) {
     return(NULL)
   })
 
-  observeEvent(input$button_fileInput, {
-    if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
-
-    if ( is.null(input$textInput_filename) ||
-         !file.exists(input$textInput_filename) ||
-         file.info(input$textInput_filename)$isdir)
-    {
-      showModal(modalDialog( title = "File not found", paste0( input$textInput_filename) ))
-      return(NULL)
-    }
-    
-    values$loaded_time = Sys.time()
-    
-    updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
-
-    progress <- shiny::Progress$new()
-    on.exit(progress$close())
-    progress$set(message = "Reading Samples:", value = 0)
-
-    con <- file(input$textInput_filename)
-    manifest = readLines(con)
-    close(con)
-    
-    values$manifest_metadata <- load_samples(manifest, progress)
-
-    values$submitted_refits <- c()
+  observeEvent(input$reviewTabsetPanel, {
+   if (input$reviewTabsetPanel == "cBioPortal") {
+     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
+     selected_sample = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,1]), collapse="")
+     if (grepl('P\\-\\d{7}.*', selected_sample)) {
+       patient_id = gsub("\\-T.*", "", selected_sample)
+       browseURL(paste0('https://cbioportal.mskcc.org/patient?studyId=mskimpact&caseId=', patient_id))
+       updateTabsetPanel(session, "reviewTabsetPanel", selected = "png_image_tabset")
+     } else{
+       showModal(modalDialog( title = "Not a valid DMP ID", "Cannot open this sample in cBioPortal"))
+     }
+   }
   })
 
   observeEvent(input$button_dmpSamplesInput, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     
+    if (is.null(values$selected_repo)) {
+      showModal(modalDialog(title = "Failed", 
+                            paste0("No facets repository selected. Please choose one.")
+      ))
+      return(NULL)
+    }
+    
     # make sure the sample input string is the right format
-    dmp_ids <- gsub(' |\\s*,\\s*$', '', input$textAreaInput_dmpSamplesInput)
+    dmp_ids <- gsub(' |\\s|\\t', '', input$textAreaInput_dmpSamplesInput)
 
-    if (!grepl("^P-\\d{7}-T0\\d-IM\\d(,P-\\d{7}-T0\\d-IM\\d)*$", dmp_ids)) {
+    if (!grepl(values$selected_repo$sample_name_format, dmp_ids)) {
       showModal(modalDialog(title = "Incorrect format!", 
                             paste0("IMPACT Tumor Sample IDs are in incorrect format. ",
                                    "Expecting one or more (comma-separated) DMP IDs")
@@ -161,7 +176,7 @@ function(input, output, session) {
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
     
-    values$manifest_metadata <- load_impact_samples(dmp_ids, values$config$facets_repo_manifest, progress)
+    values$manifest_metadata <- load_impact_samples(dmp_ids, values$selected_repo$manifest_file, progress)
     
     num_samples_queried = length(dmp_ids)
     num_samples_found = nrow(values$manifest_metadata)
@@ -358,9 +373,13 @@ function(input, output, session) {
     
     output$datatable_QC_flags <- DT::renderDataTable({
       filter_columns = c("homdel_filter", "diploid_seg_filter", "waterfall_filter", 
-                         "hyper_seg_filter", "high_ploidy_filter", "valid_purity_filter")
+                         "hyper_seg_filter", "high_ploidy_filter", "valid_purity_filter", 
+                         "em_cncf_icn_discord_filter", "dipLogR_too_low_filter", 
+                         "icn_allelic_state_concordance_filter", "subclonal_genome_filter", "contamination_filter")
       filter_names = c("Homozygous deletions", "Diploid segments (in dipLogR)", "No Waterfall pattern", 
-                       "No hyper segmentation", "Not high ploidy", "Has valid purity")
+                       "No hyper segmentation", "Not high ploidy", "Has valid purity", 
+                       "em vs. cncf TCN/LCN discordance", "dipLogR not too low", 
+                       "ICN is discordant with allelic state ", "High % subclonal","contamination check")
       
       df <- data.frame(filter_name = filter_names, 
                        passed = unlist(selected_run[, paste0(filter_columns, '_pass')], use.names = F),
@@ -651,7 +670,7 @@ function(input, output, session) {
     new_diplogR = input$textInput_newDipLogR
     
     default_run_facets_version = selected_run$hisens_run_version[1]
-    if(is.na(facets_version_to_use)) {
+    if(is.na(default_run_facets_version)) {
       default_run_facets_version = selected_run$purity_run_version[1]
     }
     
@@ -660,7 +679,7 @@ function(input, output, session) {
       facets_version_to_use = default_run_facets_version
     }
     
-    supported_facets_versions = values$config$facets_lib
+    supported_facets_versions = values$config$facets_lib %>% data.table
     if (!(facets_version_to_use %in% supported_facets_versions$version)) {
       showModal(modalDialog(
         title="Not submitted", 
@@ -676,7 +695,7 @@ function(input, output, session) {
                              ifelse(!is.na(new_snp_window_size) && new_snp_window_size != '', "_n{new_snp_window_size}", ""),
                              ifelse(facets_version_to_use != default_run_facets_version, '_v{facets_version_to_use}', '')
                            ))
-
+    
     name_tag = glue(name_tag)
     refit_name <- glue('/refit_{name_tag}')
     cmd_script_pfx = paste0(values$config$watcher_dir, "/facets_refit_cmd_")
@@ -690,7 +709,6 @@ function(input, output, session) {
     }
     
     refit_dir <- paste0(run_path, refit_name)
-    
     facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
     
     refit_cmd = glue(paste('/opt/common/CentOS_7-dev/bin/Rscript  ',
@@ -706,8 +724,8 @@ function(input, output, session) {
                            '--seed 100 ',
                            '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T -e ',
                            '--genome hg19 --directory {refit_dir} '))
-    
     write(refit_cmd, refit_cmd_file)
+    
     showModal(modalDialog(
       title = "Job submitted!", paste0("Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
     ))

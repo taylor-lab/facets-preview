@@ -47,8 +47,12 @@ ui <-
                    (eg: default, facets_c50p100R0.5.6, refit_dipLogR_1.0, etc)</div><br>"
                  ),
                  wellPanel(
-                   h4("Load from IMPACT facets runs maintained by CCS. Note: Refit permissions maybe restricted."),
-                   h5("Eg: P-0004134-T01-IM5,P-0044353-T01-IM6,P-0006554-T01-IM5"),
+                   h4("Load from selected repository. Note: Refit permissions maybe restricted."),
+                   div(style="display:inline-block",
+                       actionLink("link_choose_repo", "choose repository"),
+                       style="align:right; padding:1px"),
+                   h4(p(id = "element_repo_name", "No repository loaded!")),
+                   h5(p(id = "element_repo_manifest", "")),
                    textAreaInput("textAreaInput_dmpSamplesInput", label=NULL, value="", rows=1),
                    actionButton("button_dmpSamplesInput", "Retrieve IMPACT run(s)", class = "btn-primary")
                  ),
@@ -58,13 +62,6 @@ ui <-
                    h5("Eg: /juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5"),
                    textAreaInput("textAreaInput_samplesInput", label=NULL, value="/juno/work/ccs/bandlamc/tmp/P-0007584-T01-IM5_P-0007584-N01-IM5/", rows=4),
                    actionButton("button_samplesInput", "Retrieve Sample(s)", class = "btn-primary")
-                 ),
-                 h3("or",style="text-align:center"),
-                 wellPanel(
-                   h4("Load facets runs from file"),
-                   h5("file containing list of directories. Eg: /juno/work/ccs/bandlamc/facets_review_app/test_input"),
-                   textInput("textInput_filename", ""),
-                   actionButton("button_fileInput", "Retrieve Sample(s) from file", class = "btn-primary")
                  ),
                  width = 12
                  )
@@ -114,9 +111,9 @@ ui <-
                                               HTML(" Watcher status: <i class=\"fa fa-check\" aria-hidden=\"true\"></i>"), style="color: green")),
                           shinyjs::hidden(div(id="div_watcherFail",
                                               HTML(" Watcher status: <i class=\"fa fa-times\" aria-hidden=\"true\"></i>"), style="color: red")),
-                          textInput("textInput_newDipLogR", value = -0.123,"dipLogR "),
-                          textInput("textInput_newPurityCval", value = 135, "purity cval "),
-                          textInput("textInput_newHisensCval", value = 55, "hisens cval "),
+                          textInput("textInput_newDipLogR", value = "","dipLogR "),
+                          textInput("textInput_newPurityCval", value = 100, "purity cval "),
+                          textInput("textInput_newHisensCval", value = 50, "hisens cval "),
                           div(style="display:inline-block",
                             actionLink("link_advancedOptions", "show advanced options"),
                             style="align:right; padding:10px"),
@@ -185,7 +182,7 @@ ui <-
                                        actionButton("button_saveChanges", "Save changes to this file",
                                                     width='100%', class="btn-primary"),
                                        rhandsontable::rHandsontableOutput("editableSegmentsTable"))
-
+ 
                                      ),
                             tabPanel("Review notes",
                                      wellPanel(
@@ -210,7 +207,7 @@ ui <-
                                          h5(strong("Select best fit (applicable only if best fit selected):")),
                                          selectInput(inputId = "selectInput_selectBestFit", label=NULL,
                                                      choices=c("Not selected")),
-                                         checkboxInput(inputId = "checkbox_purity_only", label = "Use purity run for mafAnno", value = FALSE),
+                                         checkboxInput(inputId = "checkbox_purity_only", label = "Use purity run for CCF estimation", value = FALSE),
                                          checkboxInput(inputId = "checkbox_use_edited_cncf", label = "Use edited.cncf.txt", value = FALSE),
                                          textInput("textInput_purity", label = 'Use purity (only to be set when facets purity is NA/0.3):')
                                        ),
@@ -220,7 +217,9 @@ ui <-
                                        verbatimTextOutput("verbatimTextOutput_signAs"),
                                        actionButton("button_addReview", "Submit Review", class = "btn-primary", width='100%')
                                        )
-                                  )
+                                  ),
+                            tabPanel("cBioPortal")
+                            #tabPanel(a("cBioPortal", href="http://google.com", target="_blank")  )
                           ),width = '100%'
                       )
                )
