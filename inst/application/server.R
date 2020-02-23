@@ -31,8 +31,15 @@ function(input, output, session) {
     
     updateSelectInput(session, "selectInput_repo",
                       choices = as.list(c("none", values$config$repo$name)),
-                      selected = "None")
-                      
+                      selected = "none")
+    
+    source(values$config$facets_qc_script)
+    
+    library(facetsSuite, lib.loc = values$config$facets_suite_lib)
+    
+    html("element_facets_qc_version1", paste0('facets qc version: ', facets_qc_version()))
+    html("element_facets_qc_version2", paste0('facets qc version: ', facets_qc_version()))
+    
     # check if /juno is mounted
     if (!verify_sshfs_mount(values$config$watcher_dir)) {
       return(NULL)
@@ -98,11 +105,12 @@ function(input, output, session) {
       
       output$datatable_fitReviews <- DT::renderDataTable({
         DT::datatable(facets_runs %>% 
-                        mutate(facets_suite_qc = ifelse(facets_suite_qc, gicon('ok'), gicon('remove'))) %>%
+                        mutate(facets_qc = ifelse(facets_qc, gicon('ok'), gicon('remove'))) %>%
                         mutate(is_best_fit = ifelse(is_best_fit, gicon('thumbs-up'), '')) %>%
-                        select(fit_name, facets_suite_qc, manual_review_best_fit = is_best_fit),
+                        select(fit_name, facets_qc, facets_qc_version, manual_review_best_fit = is_best_fit) %>%
+                        unique,
                       selection=list(mode='single'),
-                      colnames = c('Fit', 'facets-suite QC', 'Reviewed as best fit?'),
+                      colnames = c('Fit', 'facets QC', 'facets QC ver.','Reviewed as best fit?'),
                       options = list(columnDefs = list(list(className = 'dt-center', targets = 0:2)),
                                      pageLength = 100, dom='t'),
                       rownames=FALSE, escape = F)
@@ -113,10 +121,15 @@ function(input, output, session) {
                         filter(review_status != 'not_reviewed') %>%
                         mutate(use_only_purity_run = ifelse(use_only_purity_run, gicon('ok-sign'), '')) %>%
                         mutate(use_edited_cncf = ifelse(use_edited_cncf, gicon('ok-sign'), '')) %>%
-                        dplyr::select(-sample, -path, -facets_suite_qc) %>%
-                        dplyr::arrange(desc(date_reviewed)),
+                        mutate(facets_qc = ifelse(facets_qc, gicon('ok'), gicon('remove'))) %>%
+                        dplyr::select(-sample, -path, -facets_suite_version) %>%
+                        dplyr::arrange(desc(date_reviewed)) %>%
+                        select(fit_name, review_status, facets_qc, facets_qc_version, review_notes,
+                               reviewed_by, date_reviewed, use_only_purity_run, use_edited_cncf,
+                               reviewer_set_purity),
                       selection=list(mode='single'),
-                      colnames = c('Review Status', 'Fit', 'Notes', 'Reviewer', 'Date Reviewed', 'Use purity run only?', 
+                      colnames = c('Fit', 'Review Status', 'facets QC', 'facets QC ver.', 'Notes', 
+                                   'Reviewer', 'Date Reviewed', 'Use purity run only?',  
                                    'Use edited.cncf.txt?', 'Reviewer set purity:'),
                       options = list(columnDefs = list(list(className = 'dt-center', targets = 0:6)),
                                      pageLength = 100, dom = 't'),
@@ -217,11 +230,11 @@ function(input, output, session) {
     
     gicon <- function(x) as.character(icon(x, lib = "glyphicon"))
     DT::datatable(values$manifest_metadata %>%
-                    dplyr::select(-path) %>%
+                    dplyr::select(-path, -facets_suite_version, -facets_qc_version) %>%
                     mutate(default_fit_qc = ifelse(default_fit_qc, gicon('ok'), gicon('remove'))) %>%
-                    mutate(reviewed_fit_facets_suite_qc = 
+                    mutate(reviewed_fit_facets_qc = 
                              ifelse(review_status == 'Not reviewed', '',
-                                    ifelse(reviewed_fit_facets_suite_qc, gicon('ok'), gicon('remove')))) %>%
+                                    ifelse(reviewed_fit_facets_qc, gicon('ok'), gicon('remove')))) %>%
                     mutate(reviewed_fit_use_purity = ifelse(reviewed_fit_use_purity, gicon('ok-sign'), '')) %>%
                     mutate(reviewed_fit_use_edited_cncf = ifelse(reviewed_fit_use_edited_cncf, gicon('ok-sign'), '')),
                   selection=list(mode='single', selected=values$dt_sel),
@@ -325,7 +338,8 @@ function(input, output, session) {
                 file=clip,
                 quote=F,
                 col.names=F,
-                row.names=F)
+                row.names=F,
+                eol = '')
     close(clip)
   })
   
@@ -395,7 +409,10 @@ function(input, output, session) {
     })
     
     output$datatable_QC_metrics <- DT::renderDataTable({
-      DT::datatable(selected_run %>% t,
+      DT::datatable(selected_run %>% 
+                      select(-ends_with("note"),
+                             -ends_with("pass")) %>%
+                      t,
                     options = list(columnDefs = list(list(className = 'dt-center')),
                                    pageLength = 200, dom = 't', rownames= FALSE),
                     colnames = c(""))
@@ -417,8 +434,10 @@ function(input, output, session) {
     selected_run <- values$sample_runs[1,] 
     sample = selected_run$tumor_sample_id[1]
     path = selected_run$path[1]
-    facets_suite_qc = selected_run$facets_suite_qc[1]
-    
+    facets_qc = as.character(selected_run$facets_qc[1])
+    facets_qc_version = as.character(selected_run$facets_qc_version[1])
+    facets_suite_version = as.character(selected_run$facets_suite_version[1])
+
     review_status = input$radioButtons_reviewStatus
     fit_name = input$selectInput_selectBestFit[1]
     signed_as = system('whoami', intern=T)
@@ -443,8 +462,9 @@ function(input, output, session) {
         return(NULL)
       }
     }
-    
+
     df <- get_review_status(sample, path)
+    
     if (nrow(df) > 0){
       ## check if the sample has been recently reviewed (in the past 1hr)
       cur_time = Sys.time()
@@ -464,10 +484,12 @@ function(input, output, session) {
       review_notes = c(note),
       reviewed_by = c(signed_as),
       date_reviewed = as.character(Sys.time()),
-      facets_suite_qc = c(facets_suite_qc),
+      facets_qc = c(facets_qc),
       use_only_purity_run = c(use_only_purity_run),
       use_edited_cncf = c(use_edited_cncf),
       reviewer_set_purity = c(reviewer_set_purity),
+      facets_qc_version = c(facets_qc_version),
+      facets_suite_version = c(facets_suite_version),
       stringsAsFactors=FALSE
     )
     update_review_status_file(path, df)

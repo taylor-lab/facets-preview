@@ -88,7 +88,7 @@ ui <-
                                                    <i class=\"fa fa-thumbs-up\" aria-hidden=\"true\"></i> Reviewed as best fit</center>
                                                    </font>"), 
                                               style="color: darkgreen; align: left; width: 70%")),
-                          style = "padding: 10px; "
+                          style = "padding-left: 5px; padding-top: 10px"
                         ),
                         wellPanel(
                           h4(strong("Select run: ")),
@@ -155,9 +155,11 @@ ui <-
                                      value = "tabPanel_QC",
                                       h3("Showing QC for:"),
                                       verbatimTextOutput("verbatimTextOutput_name_of_qc_fit"),
-                                      h3("facets-suite QC flags:"),
+                                      h3("facets QC flags:"),
+                                      h4(p(id = "element_facets_qc_version1", ""), 
+                                         style="color: #de2e07; font-weight: bold; font-style: italic; padding-top: 0px; padding-bottom: 0px"),
                                       DT::dataTableOutput("datatable_QC_flags"),
-                                      h3("Other facets-suite QC metrics (purity run):"),
+                                      h3("QC metrics (NOTE: purity run):"),
                                       DT::dataTableOutput("datatable_QC_metrics")
                                      ),
                             tabPanel("Close Ups",
@@ -186,7 +188,9 @@ ui <-
                                      ),
                             tabPanel("Review notes",
                                      wellPanel(
-                                       h4(strong("facets-suite QC summary:")),
+                                       h4(strong("facets QC summary:")),
+                                       h4(p(id = "element_facets_qc_version2", ""), 
+                                          style="color: #de2e07; font-weight: bold; font-style: italic; padding-top: 0px; padding-bottom: 0px"),
                                        DT::dataTableOutput("datatable_fitReviews")
                                      ),
                                      wellPanel(

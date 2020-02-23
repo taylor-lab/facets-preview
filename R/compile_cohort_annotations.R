@@ -40,8 +40,8 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
               return(fit_to_use)
             }
             
-            ## read from facets.qc.txt
-            qc_file = paste0(sample_path, '/facets_suite.qc.txt')
+            ## read from facets_qc.txt
+            qc_file = paste0(sample_path, '/facets_qc.txt')
             
             if (!file.exists(qc_file)) { return() }
             

@@ -19,7 +19,7 @@ generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = 
   if (regenerate_qc) {
     facets_runs_qc <- metadata_init(sample_id, sample_path) %>% data.table
   } else {
-    facets_runs_qc <- fread(paste0(sample_path, '/facets_suite.qc.txt'))
+    facets_runs_qc <- fread(paste0(sample_path, '/facets_qc.txt'))
   }
   
   return(facets_runs_qc)

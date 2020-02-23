@@ -80,11 +80,13 @@ metadata_init_quick <- function(sample_id, sample_path) {
   default_fit_qc = ''
   review_status = 'Not reviewed'
   reviewed_fit_name = ''
-  reviewed_fit_facets_suite_qc = F
+  reviewed_fit_facets_qc = F
   reviewed_fit_use_purity = F
   reviewed_fit_use_edited_cncf = F
   reviewer_set_purity = NA
   reviewed_date = NA
+  facets_qc_version = 'unknown'
+  facets_suite_version = 'unknown'
   
   reviews <- load_reviews(sample_id, sample_path)
   if ( nrow(reviews) > 0 ){
@@ -104,19 +106,21 @@ metadata_init_quick <- function(sample_id, sample_path) {
     }
     
     if (any(default_fit_name %in% reviews$fit_name)) {
-      default_fit_qc = (reviews %>% filter(fit_name == default_fit_name) %>% arrange(desc(date_reviewed)))$facets_suite_qc[1]
+      default_fit_qc = (reviews %>% filter(fit_name == default_fit_name) %>% arrange(desc(date_reviewed)))$facets_qc[1]
     }
     
-    recent_review = (reviews %>% filter(review_status != 'not_reviewed') %>% arrange(desc(date_reviewed)) %>% head(n=1))
+    reviews = (reviews %>% filter(review_status != 'not_reviewed') %>% arrange(desc(date_reviewed)))
     
-    if (nrow(recent_review) > 0) {
-      review_status = recent_review$review_status[1]
-      reviewed_fit_name = recent_review$fit_name[1]
-      reviewed_fit_facets_suite_qc = as.logical(recent_review$facets_suite_qc[1])
-      reviewed_fit_use_purity = as.logical(recent_review$use_only_purity[1])
-      reviewed_fit_use_edited_cncf = as.logical(recent_review$use_edited_cncf[1])
-      reviewer_set_purity = recent_review$reviewer_set_purity[1]
-      reviewed_date = recent_review$date_reviewed[1]
+    if (nrow(reviews) > 0) {
+      review_status = reviews$review_status[1]
+      reviewed_fit_name = reviews$fit_name[1]
+      reviewed_fit_facets_qc = as.logical(reviews$facets_qc[1])
+      reviewed_fit_use_purity = as.logical(reviews$use_only_purity[1])
+      reviewed_fit_use_edited_cncf = as.logical(reviews$use_edited_cncf[1])
+      reviewer_set_purity = reviews$reviewer_set_purity[1]
+      reviewed_date = reviews$date_reviewed[1]
+      facets_qc_version = reviews$facets_qc_version[1]
+      facets_suite_version = reviews$facets_suite_version[1]
     }
   }
 
@@ -127,11 +131,14 @@ metadata_init_quick <- function(sample_id, sample_path) {
             'default_fit_qc' = default_fit_qc,
             'review_status' = review_status, 
             'reviewed_fit_name' = reviewed_fit_name, 
-            'reviewed_fit_facets_suite_qc' = reviewed_fit_facets_suite_qc,
+            'reviewed_fit_facets_qc' = reviewed_fit_facets_qc,
             'reviewed_fit_use_purity' = reviewed_fit_use_purity, 
             'reviewed_fit_use_edited_cncf' = reviewed_fit_use_edited_cncf, 
             'reviewer_set_purity' = reviewer_set_purity,
-            'reviewed_date' = as.POSIXct(reviewed_date, tz = Sys.timezone())))
+            'reviewed_date' = reviewed_date,
+            #'reviewed_date' = as.POSIXlt(reviewed_date, tz = Sys.timezone()),
+            'facets_qc_version' = facets_qc_version,
+            'facets_suite_version' = facets_suite_version))
 }
 
 #' helper function for app
@@ -193,7 +200,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
                  paste(round(facets_output$alBalLogR[,1],digits = 2), 
                        collapse=", "))
         }
-        fit_qc = get_impact_qc_for_fit(facets_output)
+        fit_qc = facets_fit_qc(facets_output)
       }
     }
 
@@ -229,23 +236,37 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
     return(NULL)
   }
   
-  # load reviews from the manifest file and annotate each review with the facets-suite QC status.
+  # load reviews from the manifest file and annotate each review with the facets QC status.
   # Here is where we make sure the facets_review.manifest is forward-compatible - transformed with 
   # new columns 
-  fit_qc <- facets_runs %>% select(sample = tumor_sample_id, fit_name, facets_suite_qc)
+  existing_reviews <- get_review_status(sample_id, sample_path)
+  
+  fit_qc <- 
+    facets_runs %>% 
+    mutate(facets_qc_version = as.character(facets_qc_version),
+           facets_suite_version = as.character(facets_suite_version)) %>%
+    select(sample = tumor_sample_id, fit_name, 
+           facets_suite_version, facets_qc_version, facets_qc)
+  
   reviews <-
-    rbind(fit_qc, fit_qc %>% mutate(fit_name = "Not selected") %>% unique) %>%
-    left_join(get_review_status(sample_id, sample_path) %>% 
-                mutate(facets_suite_qc = NA) %>%
-                select(-facets_suite_qc)) %>% 
+    rbind(fit_qc, fit_qc %>% mutate(fit_name = "Not selected", facets_qc = F) %>% unique) %>%
+    left_join(existing_reviews %>% 
+                filter(!is.na(date_reviewed)) %>%
+                select(-facets_qc, -facets_suite_version)) %>% 
     mutate(path = sample_path,
            review_status = ifelse(is.na(review_status), 'not_reviewed', review_status),
            ### Note: do no do this. because it will re-order the best_reviewed dates
            ### date_reviewed = ifelse(is.na(date_reviewed), as.character(Sys.time()), date_reviewed)
            ) %>%
     select(sample, path, review_status, fit_name, review_notes, reviewed_by, 
-           date_reviewed, facets_suite_qc, use_only_purity_run, use_edited_cncf, reviewer_set_purity) 
+           date_reviewed, facets_qc, use_only_purity_run, use_edited_cncf, reviewer_set_purity,
+           facets_qc_version, facets_suite_version) 
 
+  reviews <-
+    rbind(existing_reviews %>% 
+            filter(!(fit_name == 'Not selected' | facets_qc_version == facets_qc_version())),
+          reviews)
+  
   if (update_qc_file) {
     update_review_status_file(sample_path, reviews, T)
   }
@@ -264,15 +285,15 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
   
   if (update_qc_file) {
     write.table(facets_runs %>% select(-ends_with("_filter_note")), 
-                file=paste0(sample_path, '/facets_suite.qc.txt'), quote=F, row.names=F, sep='\t')
+                file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
   }
   
   facets_runs
 }
 
 #' Loads reviews from facets_review.manifest file.
-#' - If .manifest does not exist, then create generate facets-suite QC calls and generate a new one.
-#' - If .manifest exists and is old-format, then, generate facets-suite QC calls and merge reviews
+#' - If .manifest does not exist, then create generate facets QC calls and generate a new one.
+#' - If .manifest exists and is old-format, then, generate facets QC calls and merge reviews
 #' - If .manifest exists and has all the necessary columns, then just read it in.
 #'
 #' @param manifest list of facets run directories
@@ -284,7 +305,8 @@ load_reviews <- function(sample_id, sample_path) {
   review_file = paste0(sample_path, "/facets_review.manifest")
   
   reviews = get_review_status(sample_id, sample_path)
-  if (nrow(reviews) == 0 || !('facets_suite_qc' %in% names(reviews)) || length(which(is.na(reviews$facets_suite_qc))) > 0) {
+
+  if (nrow(reviews) == 0 || !('facets_qc' %in% names(reviews)) || length(which(is.na(reviews$facets_qc))) > 0) {
     metadata_init(sample_id, sample_path)
     return(get_review_status(sample_id, sample_path))
   } 
@@ -298,7 +320,7 @@ load_reviews <- function(sample_id, sample_path) {
 #' @return converts string to numeric and rounds to 2-digits
 #' @export get_review_status
 get_review_status <- function(sample_id, sample_path) {
-  review_file = paste0(sample_path, "/facets_review.manifest")
+  review_file = paste0(sample_path, "/facets_review.manifest") 
   if ( !file.exists( review_file ) || file.size(review_file) == 0 || countLines(review_file) < 2 ) {
     df <- data.frame(
       sample = character(),
@@ -307,33 +329,38 @@ get_review_status <- function(sample_id, sample_path) {
       fit_name = character(),
       review_notes = character(),
       reviewed_by = character(),
-      date_reviewed = as.POSIXct(character()),
+      date_reviewed = as.POSIXlt(character()),
       use_only_purity_run = character(),
       use_edited_cncf = character(),
-      facets_suite_qc = character(),
+      facets_qc = character(),
+      facets_qc_version = character(),
+      facets_suite_version = character(),
       reviewer_set_purity = character(),
       stringsAsFactors=FALSE
     )
     return(df)
   }
-  existing_reviews <-
-    fread(review_file, colClasses=list(POSIXct="date_reviewed"), skip = 1) %>%
+  reviews <-
+    fread(review_file, colClasses=list(character="facets_qc_version", 
+                                       character="facets_suite_version"), skip = 1) %>%
     rename_all(recode, 'best_fit' = 'fit_name') 
   
-  ### backwards compatibility; adding this new column
-  if (!('use_only_purity_run' %in% names(existing_reviews))) {
-    existing_reviews$use_only_purity_run = FALSE
+  ### backwards compatibility;
+  {
+    if (!('use_only_purity_run' %in% names(reviews))) { reviews$use_only_purity_run = FALSE }
+    
+    if (!('use_edited_cncf' %in% names(reviews))) { reviews$use_edited_cncf = FALSE }
+    
+    if (!('reviewer_set_purity' %in% names(reviews))) { reviews$reviewer_set_purity = NA }
+    
+    if ('facets_suite_qc' %in% names(reviews)) { reviews <- reviews %>% rename(facets_qc = facets_suite_qc)}
+    
+    if (!('facets_qc_version' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_qc_version = 'unknown') }
+    
+    if (!('facets_suite_version' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_suite_version = 'unknown') }
   }
   
-  if (!('use_edited_cncf' %in% names(existing_reviews))) {
-    existing_reviews$use_edited_cncf = FALSE
-  }
-  
-  if (!('reviewer_set_purity' %in% names(existing_reviews))) {
-    existing_reviews$reviewer_set_purity = NA
-  }
-  
-  return (existing_reviews %>% arrange(desc(date_reviewed)))
+  return (reviews %>% arrange(desc(date_reviewed)))
 }
 
 #' helper function for app
