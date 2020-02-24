@@ -30,7 +30,7 @@ Imports:
     doParallel,
     parallel,
     configr,
-    R.libs
+    R.utils
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true
