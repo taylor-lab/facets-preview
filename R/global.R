@@ -27,34 +27,38 @@ load_samples <- function(manifest, progress=NA) {
 #' @param progress progress bar from shiny
 #' @return simple metadata data.frame
 #' @import dplyr
-#' @export load_impact_samples
-load_impact_samples <- function(dmp_ids, manifest_file, progress) {
+#' @export load_repo_samples
+load_repo_samples <- function(tumor_ids, manifest_file, progress) {
   metadata <- data.frame()
   ##
   ## Load facets manifest files
   ##
   if (is.na(manifest_file) | !file.exists(manifest_file) | countLines(manifest_file) == 0) {
     stop(paste0('Aborting! manifest file does not exist. ', manifest_file))
-    return(metadata)
   }
 
-  impact_manifest <- 
-    fread(cmd=paste0('gzip -dc ', manifest_file)) %>% 
-    dplyr::filter(tumor_sample %in% dmp_ids) %>% 
-    unique
+  repo <- fread(cmd=paste0('gzip -dc ', manifest_file)) 
+
+  ### if manifest file has old column names for sample_id (which was 'tag') and sample_path ('run_prefix'), just rename them
+  if (all(c("tag", "run_prefix") %in% names(repo)) & !any(c("sample_id", "sample_path") %in% names(repo))) {
+    repo <- repo %>% mutate(sample_id = tag, sample_path = run_prefix)
+  }
+
+  if (!(all(c("sample_id", "sample_path", "tumor_sample") %in% names(repo)))) {
+    stop("Aborting. Manifest file does not have the required columns: sample_id, sample_path, tumor_sample")
+  }
   
-  if (nrow(impact_manifest) == 0) {
+  repo <- repo %>% dplyr::filter(tumor_sample %in% tumor_ids) %>% unique
+  
+  if (nrow(repo) == 0) {
     return(metadata)
   }
-
-  for(i in 1:dim(impact_manifest)[1]) {
-    sample_id = impact_manifest$tag[i]
-    sample_path = impact_manifest$run_prefix[i]
-
-    sample_meta <- metadata_init_quick(sample_id, sample_path)
+  
+  for(i in 1:dim(repo)[1]) {
+    sample_meta <- metadata_init_quick(repo$sample_id[i], repo$sample_path[i])
+    sample_meta$dmp_id = ifelse('dmp_id' %in% names(repo), repo$dmp_id[i] , NA)
     metadata <- rbind(metadata, as.data.frame.list(sample_meta, stringsAsFactors = F))  
-    
-    progress$inc(1/length(impact_manifest), detail = paste(" ", i, "/", length(impact_manifest)))
+    progress$inc(1/length(repo), detail = paste(" ", i, "/", length(repo)))
   }
   metadata
 }
@@ -210,8 +214,10 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
                                       purity_run_version = get0("purity_Facetsversion", ifnotfound = NA),
                                       purity_run_prefix = get0("purity_prefix", ifnotfound = NA),
                                       purity_run_Seed = get0("purity_Seed", ifnotfound = NA),
-                                      purity_run_cval = get0("purity_cval", ifnotfound = NA),
+                                      purity_run_cval = get0("purity_purity_cval", ifnotfound = NA),
                                       purity_run_nhet = get0("purity_min.nhet", ifnotfound = NA),
+                                      purity_run_snp_nbhd = get0("purity_snp.nbhd", ifnotfound = NA),
+                                      purity_run_ndepth = get0("purity_ndepth", ifnotfound = NA),
                                       purity_run_Purity = round_down(get0("purity_Purity", ifnotfound = NA)),
                                       purity_run_Ploidy = round_down(get0("purity_Ploidy", ifnotfound = NA)),
                                       purity_run_dipLogR = round_down(get0("purity_dipLogR", ifnotfound = NA)),
@@ -222,6 +228,8 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
                                       hisens_run_Seed = get0("hisens_Seed", ifnotfound = NA),
                                       hisens_run_cval = get0("hisens_cval", ifnotfound = NA),
                                       hisens_run_nhet = get0("hisens_min.nhet", ifnotfound = NA),
+                                      hisens_run_snp_nbhd = get0("hisens_snp.nbhd", ifnotfound = NA),
+                                      hisens_run_ndepth = get0("hisens_ndepth", ifnotfound = NA),
                                       hisens_run_hisens = round_down(get0("hisens_hisens", ifnotfound = NA)),
                                       hisens_run_Ploidy = round_down(get0("hisens_Ploidy", ifnotfound = NA)),
                                       hisens_run_dipLogR = round_down(get0("hisens_dipLogR", ifnotfound = NA)),
@@ -275,7 +283,6 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
   ### and determine if the status is 'reviewed_best_fit' or 'reviewed_acceptable_fit'
   best_fit = (reviews %>% 
                 arrange(desc(date_reviewed)) %>%
-                head(n=1) %>%
                 filter(review_status %in% c('reviewed_acceptable_fit', 
                                             'reviewed_best_fit'))
               )$fit_name[1]
@@ -341,8 +348,8 @@ get_review_status <- function(sample_id, sample_path) {
     return(df)
   }
   reviews <-
-    fread(review_file, colClasses=list(character="facets_qc_version", 
-                                       character="facets_suite_version"), skip = 1) %>%
+    suppressWarnings(fread(review_file, colClasses=list(character="facets_qc_version", 
+                                       character="facets_suite_version"), verbose = F, skip = 1)) %>%
     rename_all(recode, 'best_fit' = 'fit_name') 
   
   ### backwards compatibility;

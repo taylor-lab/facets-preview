@@ -45,13 +45,28 @@ function(input, output, session) {
       return(NULL)
     }
     
+    # TODO: reset to default repo
+    if (nrow(values$config$repo %>% filter(default == "T")) == 1) {
+      values$selected_repo = as.list(values$config$repo %>% filter(default == "T"))
+    }
+
     ## check if watcher is running
     {
+      if (!file.exists(paste0(values$config$watcher_dir, '/watcher.log'))) {
+        showModal(modalDialog( title = "Error",  
+                               'refit watcher is not setup. check the config file. aborting!',
+                               easyClose = TRUE))
+        stopApp(1)
+      }
+      
       cur_time = as.numeric(system(" date +%s ", intern=TRUE))
       last_mod = as.numeric(system(paste0("stat -f%c ", values$config$watcher_dir, "/watcher.log"), intern=TRUE))
+      
       if ( cur_time - last_mod < 900) {
+        values$watcher_status = T
         shinyjs::showElement(id="div_watcherSuccess")
       } else {
+        values$watcher_status = F
         shinyjs::showElement(id="div_watcherFail")
       }
     }
@@ -81,6 +96,7 @@ function(input, output, session) {
   #' @return checks for mount
   #' @export verify_sshfs_mount
   verify_sshfs_mount <- function(watcher_dir) {
+    ### Note: this will updated in the next version. There should no longer be a dependency on juno mount.
     if (!grepl(":/juno ", paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
         grepl("No such file", paste(system(paste0("ls ", watcher_dir, " 2>&1"), intern=TRUE), collapse=" "))) {
       shinyjs::showElement(id= "wellPanel_mountFail")
@@ -149,7 +165,12 @@ function(input, output, session) {
    if (input$reviewTabsetPanel == "cBioPortal") {
      if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
      selected_sample = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,1]), collapse="")
-     if (grepl('P\\-\\d{7}.*', selected_sample)) {
+     dmp_id = (values$manifest_metadata %>% filter(sample_id == selected_sample))$dmp_id[1]
+     
+     if (!is.na(dmp_id)) {
+       browseURL(paste0('https://cbioportal.mskcc.org/patient?studyId=mskimpact&caseId=', dmp_id))
+       updateTabsetPanel(session, "reviewTabsetPanel", selected = "png_image_tabset")
+     } else if (grepl('P\\-\\d{7}.*', selected_sample)) {
        patient_id = gsub("\\-T.*", "", selected_sample)
        browseURL(paste0('https://cbioportal.mskcc.org/patient?studyId=mskimpact&caseId=', patient_id))
        updateTabsetPanel(session, "reviewTabsetPanel", selected = "png_image_tabset")
@@ -159,7 +180,7 @@ function(input, output, session) {
    }
   })
 
-  observeEvent(input$button_dmpSamplesInput, {
+  observeEvent(input$button_repoSamplesInput, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     
     if (is.null(values$selected_repo)) {
@@ -170,18 +191,18 @@ function(input, output, session) {
     }
     
     # make sure the sample input string is the right format
-    dmp_ids <- gsub(' |\\s|\\t', '', input$textAreaInput_dmpSamplesInput)
+    tumor_ids <- gsub(' |\\s|\\t', '', input$textAreaInput_repoSamplesInput)
 
-    if (!grepl(values$selected_repo$sample_name_format, dmp_ids)) {
+    if (!grepl(values$selected_repo$sample_name_format, tumor_ids)) {
       showModal(modalDialog(title = "Incorrect format!", 
-                            paste0("IMPACT Tumor Sample IDs are in incorrect format. ",
-                                   "Expecting one or more (comma-separated) DMP IDs")
+                            paste0("Tumor Sample IDs are in incorrect format. ",
+                                   "Expecting one or more (comma-separated) IDs")
                             ))
       return(NULL)
     }
     values$loaded_time = Sys.time()
     
-    dmp_ids <- unlist(strsplit(dmp_ids, ","))
+    tumor_ids <- unlist(strsplit(tumor_ids, ","))
     
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
     
@@ -189,14 +210,14 @@ function(input, output, session) {
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
     
-    values$manifest_metadata <- load_impact_samples(dmp_ids, values$selected_repo$manifest_file, progress)
+    values$manifest_metadata <- load_repo_samples(tumor_ids, values$selected_repo$manifest_file, progress)
     
-    num_samples_queried = length(dmp_ids)
+    num_samples_queried = length(tumor_ids)
     num_samples_found = nrow(values$manifest_metadata)
     if (num_samples_queried != num_samples_found) {
       showModal(modalDialog(title = "Warning!", 
                             paste0("Note: Only ", num_samples_found, " of the ", num_samples_queried, 
-                                   " DMP IDs queried are found in the IMPACT FACETS folder.")
+                                   " Tumor IDs queried are found in the respository.")
       ))
       if (num_samples_found == 0) {
         return(NULL)
@@ -208,6 +229,8 @@ function(input, output, session) {
   observeEvent(input$button_samplesInput, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
 
+    values$selected_repo = NULL
+    
     values$loaded_time = Sys.time()
     
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
@@ -295,7 +318,6 @@ function(input, output, session) {
     values$sample_runs <- metadata_init(selected_sample, selected_sample_path, progress)
 
     output$verbatimTextOutput_runParams <- renderText({})
-    output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
 
     if ( is.null(values$sample_runs) || dim(values$sample_runs)[1] == 0) {
@@ -311,8 +333,11 @@ function(input, output, session) {
     
     if (nrow(values$sample_runs %>% filter(is_best_fit)) == 1) {
       selected_run = values$sample_runs %>% filter(is_best_fit) %>% head(n=1)
-    }
-    
+    } else {
+      default_fit = (values$manifest_metadata %>% filter(sample_id == selected_sample))$default_fit_name
+      selected_run = values$sample_runs %>% filter(fit_name==default_fit) %>% head(n=1)
+    } 
+
     ## hack around reactive to toggle to selected_run$fit_name 
     values$show_fit = ifelse(nrow(selected_run) == 0, 'Not selected', selected_run$fit_name)
     
@@ -326,6 +351,19 @@ function(input, output, session) {
                       choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
                       selected = "Not selected"
     )
+    
+    if (nrow(selected_run) > 0) {
+      updateTextInput(session, "textInput_newDipLogR", label = NULL, value = "")
+      updateTextInput(session, "textInput_newPurityCval", label = NULL, value = selected_run$purity_run_cval)
+      updateTextInput(session, "textInput_newHisensCval", label = NULL, value = selected_run$hisens_run_cval)
+      updateTextInput(session, "textInput_newPurityMinNHet", label = NULL, value = selected_run$purity_run_nhet)
+      updateTextInput(session, "textInput_newHisensMinNHet", label = NULL, value = selected_run$hisens_run_nhet)
+      updateTextInput(session, "textInput_newSnpWindowSize", label = NULL, value = selected_run$purity_run_snp_nbhd)
+      updateTextInput(session, "textInput_newNormalDepth", label = NULL, value = selected_run$purity_run_ndepth)
+      updateSelectInput(session, "selectInput_newFacetsLib",
+                        choices = as.list(values$config$facets_lib$version),
+                        selected = selected_run$purity_run_version)
+    }
   })
 
   observeEvent(input$button_copyClipPath, {
@@ -344,22 +382,12 @@ function(input, output, session) {
   })
   
   observeEvent(input$link_advancedOptions, {
-    if (input$selectInput_selectFit == "Not selected"){
-     # return(NULL)
-    }
-    
-    updateSelectInput(session, "selectInput_newFacetsLib",
-                      choices = as.list(c("use current run's facets version", values$config$facets_lib$version)),
-                      selected = "use current run's facets version"
-    )
     shinyjs::toggleElement(id='wellPanel_advancedOptions')
-    #shinyjs::showElement(id="wellPanel_advancedOptions")
   })
 
   observeEvent(input$selectInput_selectFit, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     output$verbatimTextOutput_runParams <- renderText({})
-    output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
     
     if ( input$selectInput_selectFit == 'Not selected') {
@@ -511,7 +539,6 @@ function(input, output, session) {
     values$show_fit_type = ""
     
     output$verbatimTextOutput_runParams <- renderText({})
-    output$verbatimTextOutput_altBalLogR <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
     
     selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
@@ -522,26 +549,16 @@ function(input, output, session) {
         paste0("purity: ", selected_run$hisens_run_Purity[1], ", ",
                "ploidy: ", selected_run$hisens_run_Ploidy[1], ", ",
                "dipLogR: ", selected_run$hisens_run_dipLogR[1], "\n",
-               "facets_lib: ", selected_run$hisens_run_version[1]
-               
-        )
+               "facets_lib: ", selected_run$hisens_run_version[1])
       } else {
         paste0("purity: ", selected_run$purity_run_Purity[1], ", ",
                "ploidy: ", selected_run$purity_run_Ploidy[1], ", ",
                "dipLogR: ", selected_run$purity_run_dipLogR[1], "\n",
-               "facets_lib: ", selected_run$purity_run_version[1]
-        )
+               "facets_lib: ", selected_run$purity_run_version[1], "\n",
+               "alt dipLogR: ", selected_run$purity_run_alBalLogR[1])
       }
     })
     
-    output$verbatimTextOutput_altBalLogR <- renderText({
-      if (input$radioGroupButton_fitType == "Purity") {
-        paste0(selected_run$purity_run_alBalLogR[1])
-      } else {
-        paste0("")
-      }
-    })
-
     output$datatable_cncf <- DT::renderDataTable({
       cncf_data <-
         get_cncf_table(input$radioGroupButton_fitType, selected_run)
@@ -628,7 +645,6 @@ function(input, output, session) {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     if (input$selectInput_selectFit == "Not selected") {
       output$verbatimTextOutput_runParams <- renderText({})
-      output$verbatimTextOutput_altBalLogR <- renderText({})
       output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
       return(NULL)
     }
@@ -666,24 +682,36 @@ function(input, output, session) {
 
   observeEvent(input$button_refit, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
-    if (input$selectInput_selectFit == "Not selected" ||
-        is.na(suppressWarnings(as.integer(input$textInput_newDipLogR))) ||
-        is.na(suppressWarnings(as.integer(input$textInput_newPurityCval))) ||
-        is.na(suppressWarnings(as.integer(input$textInput_newHisensCval))))
-    {
+    if (input$selectInput_selectFit == "Not selected") {
       showModal(modalDialog(
-        title = "Not submitted", paste0("Need all three parameters for refit.")
+        title = "Cannot submit refit", paste0("select 'any' fit first and then click 'Run'")
       ))
       return(NULL)
     }
-
-    selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
-    sample_id = selected_run$tumor_sample_id[1]
+    
+    # Enforce required values for all parameters.
+    if (input$textInput_newPurityCval == "" || input$textInput_newHisensCval == "" || 
+        input$textInput_newPurityMinNHet == "" || input$textInput_newHisensMinNHet == "" || 
+        input$textInput_newNormalDepth == "" || input$textInput_newSnpWindowSize == "" ||
+        input$selectInput_newFacetsLib == "" || input$textInput_newDipLogR == "") {
+      showModal(modalDialog(
+        title = "Cannot submit refit", paste0("All parameters are required.")
+      ))
+      return(NULL)
+    }
+    
+    sample_id = values$sample_runs$tumor_sample_id[1]
+    
+    ## get best fit if exists; other-wise default
+    selected_run = values$sample_runs %>% filter(fit_name=='default') %>% head(n=1)
+    
+    if (nrow(selected_run) == 0) {
+      selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
+    } 
     
     run_path = selected_run$path[1]
     new_purity_c = input$textInput_newPurityCval
     new_hisens_c = input$textInput_newHisensCval
-    
     new_purity_m = input$textInput_newPurityMinNHet
     new_hisens_m = input$textInput_newHisensMinNHet
     new_normal_depth = input$textInput_newNormalDepth
@@ -711,16 +739,16 @@ function(input, output, session) {
     }
     
     name_tag = (paste0("c{new_hisens_c}_pc{new_purity_c}_diplogR_{new_diplogR}",
-                             ifelse(!is.na(new_purity_m) && new_purity_m != '', "_pm{new_purity_m}", ""),
-                             ifelse(!is.na(new_hisens_m) && new_hisens_m != '', "_m{new_hisens_m}", ""),
-                             ifelse(!is.na(new_normal_depth) && new_normal_depth != '', "_nd{new_normal_depth}", ""),
-                             ifelse(!is.na(new_snp_window_size) && new_snp_window_size != '', "_n{new_snp_window_size}", ""),
-                             ifelse(facets_version_to_use != default_run_facets_version, '_v{facets_version_to_use}', '')
-                           ))
-    
+                       ifelse(new_purity_m != selected_run$purity_run_nhet, '_pm{new_purity_m}', ''),
+                       ifelse(new_hisens_m != selected_run$hisens_run_nhet, '_m{new_hisens_m}', ''),
+                       ifelse(new_normal_depth != selected_run$purity_run_ndepth, '_nd{new_normal_depth}', ''),
+                       ifelse(new_snp_window_size != selected_run$purity_run_snp_nbhd, '_n{new_snp_window_size}', ''),
+                       ifelse(new_facets_lib != selected_run$purity_run_version, '_v{facets_version_to_use}', '')
+    ))
+
     name_tag = glue(name_tag)
     refit_name <- glue('/refit_{name_tag}')
-    cmd_script_pfx = paste0(values$config$watcher_dir, "/facets_refit_cmd_")
+    cmd_script_pfx = paste0(values$config$watcher_dir, "/refit_jobs/facets_refit_cmd_")
     refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_{name_tag}.sh")
 
     if (any(values$submitted_refit == refit_name)) {
@@ -733,16 +761,29 @@ function(input, output, session) {
     refit_dir <- paste0(run_path, refit_name)
     facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
     
-    refit_cmd = glue(paste('/opt/common/CentOS_7-dev/bin/Rscript  ',
-                           values$config$run_facets_wrapper, ' ',
+    counts_file_name = glue("{run_path}/countsMerged____{sample_id}.dat.gz")
+    
+    if (!is.null(values$selected_repo)) {
+      counts_file_name = glue("{run_path}/{values$selected_repo$counts_file_format}")
+    }
+    
+    if (!file.exists(counts_file_name)) {
+      showModal(modalDialog(
+        title = "Not submitted", paste0("Counts file does not exist: ", counts_file_name)
+      ))
+      return(NULL)
+    }
+    
+    refit_cmd = glue(paste0('/opt/common/CentOS_7-dev/bin/Rscript  ',
+                           '{values$config$facets_suite_run_wrapper} ',
                            '--facets-lib-path {facets_lib_path} ', 
-                           '--counts-file {run_path}/countsMerged____{sample_id}.dat.gz ',
+                           '--counts-file {counts_file_name} ',
                            '--sample-id {sample_id} ',
-                           ifelse(!is.na(new_snp_window_size) && new_snp_window_size != '', '--snp-window-size {new_snp_window_size} ', ''),
-                           ifelse(!is.na(new_normal_depth) && new_normal_depth != '', '--normal-depth {new_normal_depth} ', ''),
+                           '--snp-window-size {new_snp_window_size} ',
+                           '--normal-depth {new_normal_depth} ',
                            '--dipLogR {new_diplogR} ',
-                           ifelse(!is.na(new_hisens_m) && new_hisens_m != '', '--min-nhet {new_hisens_m} ', ''),
-                           ifelse(!is.na(new_purity_m) & new_purity_m != '', '--purity-min-nhet {new_purity_m} ', ''),
+                           '--min-nhet {new_hisens_m} ',
+                           '--purity-min-nhet {new_purity_m} ',
                            '--seed 100 ',
                            '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T -e ',
                            '--genome hg19 --directory {refit_dir} '))

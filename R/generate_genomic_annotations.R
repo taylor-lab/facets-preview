@@ -13,8 +13,14 @@
 #' }
 #' 
 #' @export generate_genomic_annotations
-generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = T) {
-  print(sample_path)
+generate_genomic_annotations = function(sample_id, sample_path, config_file, regenerate_qc = T) {
+  
+  if (!file.exists(config_file)) {
+    stop("invalid config file provided to generate_genomic_annotations")
+  }
+  config = configr::read.config(config_file)
+  source(config$facets_qc_script)
+  library(facetsSuite, lib.loc = config$facets_suite_lib)
   
   if (regenerate_qc) {
     facets_runs_qc <- metadata_init(sample_id, sample_path) %>% data.table
@@ -22,8 +28,6 @@ generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = 
     facets_runs_qc <- fread(paste0(sample_path, '/facets_qc.txt'))
   }
   
-  return(facets_runs_qc)
-
   reviews <-
     get_review_status(sample_id, sample_path) %>% 
     select(sample_id = sample, path, review_status, fit_name, 
@@ -147,8 +151,6 @@ generate_genomic_annotations = function(sample_id, sample_path, regenerate_qc = 
     ccf_maf$cncf_file_used = cncf_txt_file
 
     write.table(ccf_maf, file=paste0(sample_path, '/', r$fit_name, '/', sample_id, '.ccf.maf'), quote=F, row.names=F, sep='\t')
-  
-    metadata_init(sample_id, sample_path) %>% data.table
     
   }, .parallel = F)
 }
