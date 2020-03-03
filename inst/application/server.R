@@ -757,17 +757,6 @@ function(input, output, session) {
       ))
       return(NULL)
     }
-<<<<<<< HEAD
-    refit_dir <- paste0(selected_run$path[1], refit_name)
-
-    refit_cmd <-
-      paste0("mkdir -p ", refit_dir, "; ",
-             "cmo_facets --lib-version 0.5.14 doFacets -c ", input$textInput_newCval,
-             " -d ", input$textInput_newDipLogR," --seed 100 -f ",
-             selected_run$path[1], "/countsMerged____", selected_run$tumor_sample_id[1], ".dat.gz ",
-             "-t ", selected_run$tumor_sample_id[1], " -D ", refit_dir)
-
-=======
     
     refit_dir <- paste0(run_path, refit_name)
     facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
@@ -798,7 +787,7 @@ function(input, output, session) {
                            '--seed 100 ',
                            '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T -e ',
                            '--genome hg19 --directory {refit_dir} '))
->>>>>>> version_2_preRelease
+
     write(refit_cmd, refit_cmd_file)
     
     showModal(modalDialog(
