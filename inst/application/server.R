@@ -86,8 +86,8 @@ function(input, output, session) {
   
   observeEvent(input$actionButton_selectRepo, {
     values$selected_repo = as.list(values$config$repo %>% filter(name == input$selectInput_repo) %>% head(n=1))
-    html("element_repo_name", paste0('Selected repository: ', values$selected_repo$name))
-    html("element_repo_manifest", paste0('manifest file: ', values$selected_repo$manifest_file))
+    shinyjs::html("element_repo_name", paste0('Selected repository: ', values$selected_repo$name))
+    shinyjs::html("element_repo_manifest", paste0('manifest file: ', values$selected_repo$manifest_file))
     removeModal()
   })
   
@@ -764,7 +764,7 @@ function(input, output, session) {
     counts_file_name = glue("{run_path}/countsMerged____{sample_id}.dat.gz")
     
     if (!is.null(values$selected_repo)) {
-      counts_file_name = glue("{run_path}/{values$selected_repo$counts_file_format}")
+      counts_file_name = glue(paste0("{run_path}/",values$selected_repo$counts_file_format))
     }
     
     if (!file.exists(counts_file_name)) {
