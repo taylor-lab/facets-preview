@@ -1,6 +1,6 @@
 # FAQ
 
-## 1. If this,
+## 1. _to do_
 
-then, this
+...
 

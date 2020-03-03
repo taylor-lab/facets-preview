@@ -48,7 +48,12 @@ Same data as in 3.4 but allows editing the cncf.txt file. Useful for correcting 
 
 ### _3.6 Review notes_
 
-facets-preview enables annotating samples at multiple levels.
+`facets-preview` enables annotating samples at multiple levels.
+
+* "Acceptable fit" and "Best fit" differ only by subjective assessment of analyst in degree of confidence in the fit. Currently, no distinction is made between the two in calculating [genomic annotations](generate-ccfs-gene-level-calls.md#2-through-facets-preview). Therefore, it is up to the analyst to take this distinction in consideration in the downstream analysis.
+* "Use purity run for CCF annotation". In some cases, a `hisens` run is undesirable \(eg: too high fragmentation, etc\) and a `purity` run is preferable for CCF calculations.
+* "Use purity". In cases where purity is NA/0.3, this allows analyst to enter a purity value estimated from mutations \(for example, MSI tumors are flat and therefore yield a purity of NA\).
+* **Note: In case of multiple manual reviews, the one that is most recent is used for genomic annotations.**
 
 ![](.gitbook/assets/facets-preview-7-review_panel.svg)
 

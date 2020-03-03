@@ -2,17 +2,17 @@
 
 **v2.1.0 \(March 2020\)**
 
-* **Major release. Required: facets-suite v2.0.3 or higher. facets\_qc v1.0 or higher.**
+* **Major release. Required: facets-suite v2.0.5 or higher. facets\_qc v1.0 or higher.**
 * Introducing "repositories" \(or "repo"\) that can be loaded into `facets-preview`. Quite simply, a "repo" is a folder with all facets runs/fits that be queried and loaded into the app through a "sample manifest" file.
 * QC script is now independent of the app and is versioned separately. Multiple versions of QC calls can now co-exist
-* Added new QC filters \(therefore, require facets-suite v2.0.3 or higher\)
-* Parameterized `facets-preview` to load options from a confg file \(.json\). Can be configured to load repositories, set QC scripts, specific version of facets-suite. 
+* Added new QC filters \(therefore, require facets-suite v2.0.5 or higher\)
+* Parameterized `facets-preview` to load options from a confg file \(.json\). Can be configured to load repositories, set QC scripts, specific version of facets-suite and also the _refit watcher_. 
 * Allowing more expansive options for "refit".
 
 **v2.0.0a \(December 2019\)**
 
 * Integration with IMPACT facets repository maintained by CCS.
-* QC criteria evaluating each fit \(see xxx\)
+* QC criteria evaluating each fit
 * Migration to `juno`.
   * Now requires `/juno` to be mounted.
   * All refits now performed on `juno`
