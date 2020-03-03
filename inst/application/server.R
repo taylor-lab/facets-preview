@@ -37,8 +37,8 @@ function(input, output, session) {
     
     library(facetsSuite, lib.loc = values$config$facets_suite_lib)
     
-    html("element_facets_qc_version1", paste0('facets qc version: ', facets_qc_version()))
-    html("element_facets_qc_version2", paste0('facets qc version: ', facets_qc_version()))
+    shinyjs::html("element_facets_qc_version1", paste0('facets qc version: ', facets_qc_version()))
+    shinyjs::html("element_facets_qc_version2", paste0('facets qc version: ', facets_qc_version()))
     
     # check if /juno is mounted
     if (!verify_sshfs_mount(values$config$watcher_dir)) {
