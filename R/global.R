@@ -6,82 +6,180 @@
 #' @return simple metadata data.frame
 #' @import dplyr
 #' @export load_samples
-load_samples <- function(manifest, progress) {
-  metadata <- data.frame(sample=c(), path = c(), run_dir_exists = c(), num_fits_found = c(),
-                         manually_reviewed = c(), best_fit_available = c(), stringsAsFactors=FALSE)
+load_samples <- function(manifest, progress=NA) {
+  metadata <- data.frame()
+  ## could do this using sapply but want to display the progress bar;
   for(i in 1:length(manifest)[1]) {
     sample_path = manifest[i]
-    sample = tail(unlist(strsplit(sample_path, "/")), 1)
-    m <- metadata_init_quick(sample, sample_path)
-    metadata <- rbind(metadata,
-                      data.frame(sample=sample, path=sample_path, run_dir_exists = m[1], num_fits_found = m[2],
-                                 manually_reviewed = m[3], best_fit_available=m[4], review_date = m[5], stringsAsFactors=FALSE ))
-    progress$inc(1/length(manifest), detail = paste(" ", i, "/", length(manifest)))
+    sample_id = tail(unlist(strsplit(sample_path, "/")), 1)
+    
+    metadata <- rbind(metadata, as.data.frame.list(metadata_init_quick(sample_id, sample_path), stringsAsFactors = F))
+    if (!is.null(progress)) {
+      progress$inc(1/length(manifest), detail = paste(" ", i, "/", length(manifest)))
+    }
   }
   metadata
 }
 
 #' helper function for app
 #'
-#' @param sample sample name
+#' @param manifest list of facets run directories
+#' @param progress progress bar from shiny
+#' @return simple metadata data.frame
+#' @import dplyr
+#' @export load_repo_samples
+load_repo_samples <- function(tumor_ids, manifest_file, progress) {
+  metadata <- data.frame()
+  ##
+  ## Load facets manifest files
+  ##
+  if (is.na(manifest_file) | !file.exists(manifest_file) | countLines(manifest_file) == 0) {
+    stop(paste0('Aborting! manifest file does not exist. ', manifest_file))
+  }
+
+  repo <- fread(cmd=paste0('gzip -dc ', manifest_file)) 
+
+  ### if manifest file has old column names for sample_id (which was 'tag') and sample_path ('run_prefix'), just rename them
+  if (all(c("tag", "run_prefix") %in% names(repo)) & !any(c("sample_id", "sample_path") %in% names(repo))) {
+    repo <- repo %>% mutate(sample_id = tag, sample_path = run_prefix)
+  }
+
+  if (!(all(c("sample_id", "sample_path", "tumor_sample") %in% names(repo)))) {
+    stop("Aborting. Manifest file does not have the required columns: sample_id, sample_path, tumor_sample")
+  }
+  
+  repo <- repo %>% dplyr::filter(tumor_sample %in% tumor_ids) %>% unique
+  
+  if (nrow(repo) == 0) {
+    return(metadata)
+  }
+  
+  for(i in 1:dim(repo)[1]) {
+    sample_meta <- metadata_init_quick(repo$sample_id[i], repo$sample_path[i])
+    sample_meta$dmp_id = ifelse('dmp_id' %in% names(repo), repo$dmp_id[i] , NA)
+    metadata <- rbind(metadata, as.data.frame.list(sample_meta, stringsAsFactors = F))  
+    progress$inc(1/length(repo), detail = paste(" ", i, "/", length(repo)))
+  }
+  metadata
+}
+
+#' helper function for app
+#'
+#' @param sample_id sample_id name
 #' @param sample_path path to facets run dir
 #' @return minimal description of the facets run
 #' @export metadata_init_quick
-metadata_init_quick <- function(sample, sample_path) {
+metadata_init_quick <- function(sample_id, sample_path) {
   run_dir_exists = "No"
   if ( dir.exists(sample_path)) {
     run_dir_exists = "Yes"
   }
   facets_run_dirs = list.dirs(sample_path, full.names=FALSE)
-  facets_run_dirs <- facets_run_dirs[grep("^facets", facets_run_dirs)]
+  facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs, ignore.case = T)]
 
   review_file = paste0(sample_path, "/facets_review.manifest")
-  manually_reviewed = "No"
-  best_fit_available = "No"
-  review_date = "NA"
 
-  if ( file.exists(review_file) ) {
-    df <- fread(review_file, skip = 1) %>%
-      arrange(desc(date_reviewed))
-    if ( dim(df)[1] > 0 ){
-      manually_reviewed = "Yes"
-      best_fit_available = ifelse ( df$review_status[1] == "reviewed_best_fit", "Yes", "No")
-      review_date = df$date_reviewed[1]
+  num_fits = ''
+  default_fit_name = ''
+  default_fit_qc = ''
+  review_status = 'Not reviewed'
+  reviewed_fit_name = ''
+  reviewed_fit_facets_qc = F
+  reviewed_fit_use_purity = F
+  reviewed_fit_use_edited_cncf = F
+  reviewer_set_purity = NA
+  reviewed_date = NA
+  facets_qc_version = 'unknown'
+  facets_suite_version = 'unknown'
+  
+  reviews <- load_reviews(sample_id, sample_path)
+  if ( nrow(reviews) > 0 ){
+    num_fits = nrow(reviews %>% filter(!grepl('Not selected', fit_name)) %>% select(fit_name) %>% unique)
+
+    default_fit_name = 'default'
+    if (!(any(default_fit_name %in% reviews$fit_name))) {
+      default_fit_name =
+        ((reviews %>% 
+        filter(!grepl('^facets_refit|^refit_|^alt_diplogR|Not sel', fit_name, ignore.case = T)))$fit_name %>% 
+        unique)[1]
+      
+      ## if default_fit_name is still not find, just pick any
+      if (is.na(default_fit_name)) {
+        default_fit_name = reviews$fit_name[1]
+      }
+    }
+    
+    if (any(default_fit_name %in% reviews$fit_name)) {
+      default_fit_qc = (reviews %>% filter(fit_name == default_fit_name) %>% arrange(desc(date_reviewed)))$facets_qc[1]
+    }
+    
+    reviews = (reviews %>% filter(review_status != 'not_reviewed') %>% arrange(desc(date_reviewed)))
+    
+    if (nrow(reviews) > 0) {
+      review_status = reviews$review_status[1]
+      reviewed_fit_name = reviews$fit_name[1]
+      reviewed_fit_facets_qc = as.logical(reviews$facets_qc[1])
+      reviewed_fit_use_purity = as.logical(reviews$use_only_purity[1])
+      reviewed_fit_use_edited_cncf = as.logical(reviews$use_edited_cncf[1])
+      reviewer_set_purity = reviews$reviewer_set_purity[1]
+      reviewed_date = reviews$date_reviewed[1]
+      facets_qc_version = reviews$facets_qc_version[1]
+      facets_suite_version = reviews$facets_suite_version[1]
     }
   }
-  return (c(run_dir_exists, length(facets_run_dirs), manually_reviewed, best_fit_available, review_date))
+
+  return (list('sample_id' = sample_id,
+            'path' = sample_path,
+            'num_fits' = num_fits, 
+            'default_fit_name' = default_fit_name,
+            'default_fit_qc' = default_fit_qc,
+            'review_status' = review_status, 
+            'reviewed_fit_name' = reviewed_fit_name, 
+            'reviewed_fit_facets_qc' = reviewed_fit_facets_qc,
+            'reviewed_fit_use_purity' = reviewed_fit_use_purity, 
+            'reviewed_fit_use_edited_cncf' = reviewed_fit_use_edited_cncf, 
+            'reviewer_set_purity' = reviewer_set_purity,
+            'reviewed_date' = reviewed_date,
+            #'reviewed_date' = as.POSIXlt(reviewed_date, tz = Sys.timezone()),
+            'facets_qc_version' = facets_qc_version,
+            'facets_suite_version' = facets_suite_version))
 }
 
 #' helper function for app
 #'
-#' @param sample sample name
+#' @param sample_id sample_id name
 #' @param sample_path path to facets run dir
 #' @param progress progress bar from shiny
 #' @return description of the facets run
 #' @export metadata_init
-metadata_init <- function(sample, sample_path, progress) {
+metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_file = TRUE) {
   facets_runs <- get_new_facets_runs_df()
   facets_run_dirs = list.dirs(sample_path, full.names=FALSE)
-  facets_run_dirs <- facets_run_dirs[grep("^facets", facets_run_dirs)]
+  
+  ## identify different fits generated for this sample.
+  facets_run_dirs <- facets_run_dirs[grep("^facets|^default$|^refit_|^alt_diplogR", facets_run_dirs, ignore.case = T)]
 
+  ### for each run directory, load metadata.
   for(fi in 1:length(facets_run_dirs)) {
-    progress$inc(1/length(facets_run_dirs), detail = paste(" ", fi, "/", length(facets_run_dirs)))
+    if (!is.null(progress)) {
+      progress$inc(1/length(facets_run_dirs), detail = paste(" ", fi, "/", length(facets_run_dirs)))
+    }
     fit_name = facets_run_dirs[fi]
     facets_run = paste(sample_path, "/", fit_name, sep="")
     facets_run_files = list.files(facets_run, pattern=".out$")
-    if ( length(facets_run_files) == 0 ) {
-      next
-    }
-
+    
+    if ( length(facets_run_files) == 0 ) { next }
+    
+    rm(list = ls()[grep("purity_", ls())]) # remove all previous facets_params
+    rm(list = ls()[grep("hisens_", ls())])
     for( fif in 1:length(facets_run_files) ) {
-      paste(facets_run, facets_run_files[fif], sep="/")
+      
       facets_out_params = readLines(paste0(facets_run, "/", facets_run_files[fif]))
       run_type = "hisens_"
       if (grepl("_purity", facets_out_params[2])) {
         run_type = "purity_"
       }
 
-      rm(list = ls()[grep(run_type, ls())]) # remove all previous facets_params
       run_prefix = ""
       for ( p_idx in 1:length(facets_out_params)) {
         line = gsub(" |#", "", facets_out_params[p_idx])
@@ -94,41 +192,133 @@ metadata_init <- function(sample, sample_path, progress) {
           assign(paste0(run_type, sp[1]), sp[2])
         }
       }
+      
+      ### for purity runs, run QC. (here we are checking for "not hisens" because some 
+      ### runs may not have _purity or _hisens suffix)
       rdata_file = paste0(run_prefix, ".Rdata")
-      if ( file.exists(rdata_file)) {
-        load(rdata_file)
-        if (!is.null(out$alBalLogR)) {
-          assign(paste0(run_type, "alBalLogR"), paste(round(out$alBalLogR[,1],digits = 2), collapse=", "))
+      if ( (length(facets_run_files) == 1) || (!grepl('hisens', run_type) & file.exists(rdata_file))) {
+        facets_output = facetsSuite::load_facets_output(rdata_file)
+
+        if (!is.null(facets_output$alBalLogR)) {
+          assign(paste0(run_type, "alBalLogR"), 
+                 paste(round(facets_output$alBalLogR[,1],digits = 2), 
+                       collapse=", "))
         }
+        fit_qc = facets_fit_qc(facets_output)
       }
     }
 
     facets_runs <- rbind(facets_runs,
-                         data.frame(tumor_sample_id = sample, path = sample_path, fit_name = fit_name,
-                                    purity_run_prefix = get0("purity_prefix", ifnotfound = NA),
-                                    purity_run_Seed = get0("purity_Seed", ifnotfound = NA),
-                                    purity_run_cval = get0("purity_cval", ifnotfound = NA),
-                                    purity_run_Purity = round_down(get0("purity_Purity", ifnotfound = NA)),
-                                    purity_run_Ploidy = round_down(get0("purity_Ploidy", ifnotfound = NA)),
-                                    purity_run_dipLogR = round_down(get0("purity_dipLogR", ifnotfound = NA)),
-                                    purity_run_alBalLogR = get0("purity_alBalLogR", ifnotfound = NA),
-
-                                    hisens_run_prefix = get0("hisens_prefix", ifnotfound = NA),
-                                    hisens_run_Seed = get0("hisens_Seed", ifnotfound = NA),
-                                    hisens_run_cval = get0("hisens_cval", ifnotfound = NA),
-                                    hisens_run_hisens = round_down(get0("hisens_hisens", ifnotfound = NA)),
-                                    hisens_run_Ploidy = round_down(get0("hisens_Ploidy", ifnotfound = NA)),
-                                    hisens_run_dipLogR = round_down(get0("hisens_dipLogR", ifnotfound = NA)),
-
-                                    manual_note = NA,
-                                    is_best_fit = NA,
-                                    stringsAsFactors=FALSE
-                         )
-    )
+                         cbind(
+                           data.frame(tumor_sample_id = sample_id, path = sample_path, fit_name = fit_name,
+                                      purity_run_version = get0("purity_Facetsversion", ifnotfound = NA),
+                                      purity_run_prefix = get0("purity_prefix", ifnotfound = NA),
+                                      purity_run_Seed = get0("purity_Seed", ifnotfound = NA),
+                                      purity_run_cval = get0("purity_purity_cval", ifnotfound = NA),
+                                      purity_run_nhet = get0("purity_min.nhet", ifnotfound = NA),
+                                      purity_run_snp_nbhd = get0("purity_snp.nbhd", ifnotfound = NA),
+                                      purity_run_ndepth = get0("purity_ndepth", ifnotfound = NA),
+                                      purity_run_Purity = round_down(get0("purity_Purity", ifnotfound = NA)),
+                                      purity_run_Ploidy = round_down(get0("purity_Ploidy", ifnotfound = NA)),
+                                      purity_run_dipLogR = round_down(get0("purity_dipLogR", ifnotfound = NA)),
+                                      purity_run_alBalLogR = get0("purity_alBalLogR", ifnotfound = NA),
+    
+                                      hisens_run_version = get0("hisens_Facetsversion", ifnotfound = NA),
+                                      hisens_run_prefix = get0("hisens_prefix", ifnotfound = NA),
+                                      hisens_run_Seed = get0("hisens_Seed", ifnotfound = NA),
+                                      hisens_run_cval = get0("hisens_cval", ifnotfound = NA),
+                                      hisens_run_nhet = get0("hisens_min.nhet", ifnotfound = NA),
+                                      hisens_run_snp_nbhd = get0("hisens_snp.nbhd", ifnotfound = NA),
+                                      hisens_run_ndepth = get0("hisens_ndepth", ifnotfound = NA),
+                                      hisens_run_hisens = round_down(get0("hisens_hisens", ifnotfound = NA)),
+                                      hisens_run_Ploidy = round_down(get0("hisens_Ploidy", ifnotfound = NA)),
+                                      hisens_run_dipLogR = round_down(get0("hisens_dipLogR", ifnotfound = NA)),
+    
+                                      manual_note = NA,
+                                      is_best_fit = NA,
+                                      stringsAsFactors=FALSE),
+                           fit_qc))
   }
+  
+  if (nrow(facets_runs) == 0) {
+    return(NULL)
+  }
+  
+  # load reviews from the manifest file and annotate each review with the facets QC status.
+  # Here is where we make sure the facets_review.manifest is forward-compatible - transformed with 
+  # new columns 
+  existing_reviews <- get_review_status(sample_id, sample_path)
+  
+  fit_qc <- 
+    facets_runs %>% 
+    mutate(facets_qc_version = as.character(facets_qc_version),
+           facets_suite_version = as.character(facets_suite_version)) %>%
+    select(sample = tumor_sample_id, fit_name, 
+           facets_suite_version, facets_qc_version, facets_qc)
+  
+  reviews <-
+    rbind(fit_qc, fit_qc %>% mutate(fit_name = "Not selected", facets_qc = F) %>% unique) %>%
+    left_join(existing_reviews %>% 
+                filter(!is.na(date_reviewed)) %>%
+                select(-facets_qc, -facets_suite_version)) %>% 
+    mutate(path = sample_path,
+           review_status = ifelse(is.na(review_status), 'not_reviewed', review_status),
+           ### Note: do no do this. because it will re-order the best_reviewed dates
+           ### date_reviewed = ifelse(is.na(date_reviewed), as.character(Sys.time()), date_reviewed)
+           ) %>%
+    select(sample, path, review_status, fit_name, review_notes, reviewed_by, 
+           date_reviewed, facets_qc, use_only_purity_run, use_edited_cncf, reviewer_set_purity,
+           facets_qc_version, facets_suite_version) 
+
+  reviews <-
+    rbind(existing_reviews %>% 
+            filter(!(fit_name == 'Not selected' | facets_qc_version == facets_qc_version())),
+          reviews)
+  
+  if (update_qc_file) {
+    update_review_status_file(sample_path, reviews, T)
+  }
+
+  ### determine if the sample has at least an acceptable_fit; get the most recent review 
+  ### and determine if the status is 'reviewed_best_fit' or 'reviewed_acceptable_fit'
+  best_fit = (reviews %>% 
+                arrange(desc(date_reviewed)) %>%
+                filter(review_status %in% c('reviewed_acceptable_fit', 
+                                            'reviewed_best_fit'))
+              )$fit_name[1]
+  
+  facets_runs$is_best_fit = F
+  facets_runs$is_best_fit[which(facets_runs$fit_name == best_fit)] = T
+  
+  if (update_qc_file) {
+    write.table(facets_runs %>% select(-ends_with("_filter_note")), 
+                file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
+  }
+  
   facets_runs
 }
 
+#' Loads reviews from facets_review.manifest file.
+#' - If .manifest does not exist, then create generate facets QC calls and generate a new one.
+#' - If .manifest exists and is old-format, then, generate facets QC calls and merge reviews
+#' - If .manifest exists and has all the necessary columns, then just read it in.
+#'
+#' @param manifest list of facets run directories
+#' @param progress progress bar from shiny
+#' @return simple metadata data.frame
+#' @import dplyr
+#' @export load_reviews
+load_reviews <- function(sample_id, sample_path) {
+  review_file = paste0(sample_path, "/facets_review.manifest")
+  
+  reviews = get_review_status(sample_id, sample_path)
+
+  if (nrow(reviews) == 0 || !('facets_qc' %in% names(reviews)) || length(which(is.na(reviews$facets_qc))) > 0) {
+    metadata_init(sample_id, sample_path)
+    return(get_review_status(sample_id, sample_path))
+  } 
+  return(reviews)
+}
 
 #' helper function for app
 #'
@@ -136,22 +326,48 @@ metadata_init <- function(sample, sample_path, progress) {
 #' @param sample_path facets run directory containing 'facets_review.manifest'
 #' @return converts string to numeric and rounds to 2-digits
 #' @export get_review_status
-get_review_status <- function(sample, sample_path) {
-  review_file = paste0(sample_path, "/facets_review.manifest")
-  if ( !file.exists( review_file )) {
+get_review_status <- function(sample_id, sample_path) {
+  review_file = paste0(sample_path, "/facets_review.manifest") 
+  if ( !file.exists( review_file ) || file.size(review_file) == 0 || countLines(review_file) < 2 ) {
     df <- data.frame(
       sample = character(),
       path = character(),
       review_status = character(),
-      best_fit = character(),
+      fit_name = character(),
       review_notes = character(),
       reviewed_by = character(),
-      date_reviewed = as.POSIXct(character()),
+      date_reviewed = as.POSIXlt(character()),
+      use_only_purity_run = character(),
+      use_edited_cncf = character(),
+      facets_qc = character(),
+      facets_qc_version = character(),
+      facets_suite_version = character(),
+      reviewer_set_purity = character(),
       stringsAsFactors=FALSE
     )
     return(df)
   }
-  return (fread(review_file, colClasses=list(POSIXct="date_reviewed"), skip = 1))
+  reviews <-
+    suppressWarnings(fread(review_file, colClasses=list(character="facets_qc_version", 
+                                       character="facets_suite_version"), verbose = F, skip = 1)) %>%
+    rename_all(recode, 'best_fit' = 'fit_name') 
+  
+  ### backwards compatibility;
+  {
+    if (!('use_only_purity_run' %in% names(reviews))) { reviews$use_only_purity_run = FALSE }
+    
+    if (!('use_edited_cncf' %in% names(reviews))) { reviews$use_edited_cncf = FALSE }
+    
+    if (!('reviewer_set_purity' %in% names(reviews))) { reviews$reviewer_set_purity = NA }
+    
+    if ('facets_suite_qc' %in% names(reviews)) { reviews <- reviews %>% rename(facets_qc = facets_suite_qc)}
+    
+    if (!('facets_qc_version' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_qc_version = 'unknown') }
+    
+    if (!('facets_suite_version' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_suite_version = 'unknown') }
+  }
+  
+  return (reviews %>% arrange(desc(date_reviewed)))
 }
 
 #' helper function for app
@@ -160,19 +376,19 @@ get_review_status <- function(sample, sample_path) {
 #' @param df dataframe
 #' @return converts string to numeric and rounds to 2-digits
 #' @export update_review_status_file
-update_review_status_file <- function(sample_path, df) {
+update_review_status_file <- function(sample_path, df, overwrite=F) {
   if (is.null(df) || dim(df)[1] == 0) {
     return (FALSE)
   }
   review_file = paste0(sample_path, "/facets_review.manifest")
-  if ( !file.exists(review_file)) {
+  if ( !file.exists(review_file) | overwrite) {
     con = file(review_file)
     writeLines("# generated by facets-preview app. DO NOT EDIT.", con)
     close(con)
-    write.table(df, review_file, append=TRUE, sep="\t", row.names=F, quote=F)
+    suppressWarnings(write.table(df %>% unique, review_file, append=TRUE, sep="\t", row.names=F, quote=F))
   }
   else {
-    write.table(df, review_file, append=TRUE, sep="\t", row.names=F, quote=F, col.names = F)
+    write.table(df %>% unique, review_file, append=TRUE, sep="\t", row.names=F, quote=F, col.names = F)
   }
   return (TRUE)
 }
@@ -244,12 +460,12 @@ get_cncf_table <- function(fit_type, selected_run) {
 
   cncf_data <-
     cncf_data %>%
-    rowwise() %>%
-    mutate(cnlr.median = round_down(cnlr.median),
+    dplyr::rowwise() %>%
+    dplyr::mutate(cnlr.median = round_down(cnlr.median),
            mafR = round_down(mafR),
            cf = round_down(cf),
            cf.em = round_down(cf.em)) %>%
-    select(-ID, -cnlr.median.clust, -mafR.clust, -segclust)
+    dplyr::select(-ID, -cnlr.median.clust, -mafR.clust, -segclust)
 
   return(cncf_data)
 }
@@ -291,6 +507,7 @@ require(data.table)
 #' @import gridExtra
 #' @import plyr
 #' @import data.table
+#' @import magrittr
 #' @export copy.number.log.ratio
 copy.number.log.ratio = function(out, fit, load.genome=FALSE, gene.pos=NULL, col.1="#0080FF", col.2="#4CC4FF", sample.num=NULL, lend='butt', theme='bw', subset.indices=NULL){
 
@@ -563,9 +780,11 @@ get.cumulative.chr.maploc = function(mat, load.genome=FALSE){
 #' @return simple metadata data.frame
 #' @import dplyr
 #' @export get.gene.pos.cached
-get.gene.pos.cached <- function(hugo.symbol, my.path='/ifs/work/bandlamc/git/facets-suite/Homo_sapiens.GRCh37.75.gene_positions.txt') {
-  fread(my.path) %>%
-    filter(gene == hugo.symbol)
+get.gene.pos.cached <- function(hugo.symbol, 
+                                my.path=NULL) {
+  data.table::fread(my.path) %>%
+    data.table %>%
+    dplyr::filter(gene == hugo.symbol)
 }
 
 #' helper function for app
@@ -575,10 +794,6 @@ get.gene.pos.cached <- function(hugo.symbol, my.path='/ifs/work/bandlamc/git/fac
 #' @import dplyr
 #' @export close.up
 close.up = function(out, fit, chrom.range=NULL, method=NA, gene.name=NULL, lend='butt', bed.path=NULL, cached.gene.path = NULL, subset.snps=FALSE, ...){
-
-  #if (!is.null(bed.path)) { gene.info = get.gene.pos(gene.name, my.path = bed.path)
-  #} else { gene.info = get.gene.pos(gene.name) }
-
   if (!is.null(cached.gene.path)) {gene.info = get.gene.pos.cached(gene.name, my.path = cached.gene.path)
   } else if (!is.null(bed.path)) { gene.info = get.gene.pos(gene.name, my.path = bed.path)
   } else { gene.info = get.gene.pos(gene.name) }
