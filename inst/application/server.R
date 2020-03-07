@@ -18,50 +18,50 @@ function(input, output, session) {
   values <- reactiveValues(config_file = ifelse( exists("facets_preview_config_file"), facets_preview_config_file, "<not set>"))
   output$verbatimTextOutput_sessionInfo <- renderPrint({print(sessionInfo())})
   output$verbatimTextOutput_signAs <- renderText({paste0(system('whoami', intern = T))})
-  
-  observe({  
+
+  observe({
     values$config_file = ifelse( exists("facets_preview_config_file"), facets_preview_config_file, "<not set>")
     if (!suppressWarnings(file.exists(values$config_file))) {
-      showModal(modalDialog( title = "config file not found",  
+      showModal(modalDialog( title = "config file not found",
                              'config file not found. Expects \"facets_preview_config_file\" variable in .Rprofile',
                              easyClose = TRUE))
       stopApp(1)
     }
     values$config = configr::read.config(values$config_file)
-    
+
     updateSelectInput(session, "selectInput_repo",
                       choices = as.list(c("none", values$config$repo$name)),
                       selected = "none")
-    
+
     source(values$config$facets_qc_script)
-    
+
     library(facetsSuite, lib.loc = values$config$facets_suite_lib)
-    
+
     shinyjs::html("element_facets_qc_version1", paste0('facets qc version: ', facets_qc_version()))
     shinyjs::html("element_facets_qc_version2", paste0('facets qc version: ', facets_qc_version()))
-    
+
     # check if /juno is mounted
     if (!verify_sshfs_mount(values$config$watcher_dir)) {
       return(NULL)
     }
-    
+
     # TODO: reset to default repo
-    if (nrow(values$config$repo %>% filter(default == "T")) == 1) {
-      values$selected_repo = as.list(values$config$repo %>% filter(default == "T"))
-    }
+    #if (nrow(values$config$repo %>% filter(default == "T")) == 1) {
+    #  values$selected_repo = as.list(values$config$repo %>% filter(default == "T"))
+    #}
 
     ## check if watcher is running
     {
       if (!file.exists(paste0(values$config$watcher_dir, '/watcher.log'))) {
-        showModal(modalDialog( title = "Error",  
+        showModal(modalDialog( title = "Error",
                                'refit watcher is not setup. check the config file. aborting!',
                                easyClose = TRUE))
         stopApp(1)
       }
-      
+
       cur_time = as.numeric(system(" date +%s ", intern=TRUE))
       last_mod = as.numeric(system(paste0("stat -f%c ", values$config$watcher_dir, "/watcher.log"), intern=TRUE))
-      
+
       if ( cur_time - last_mod < 900) {
         values$watcher_status = T
         shinyjs::showElement(id="div_watcherSuccess")
@@ -71,7 +71,7 @@ function(input, output, session) {
       }
     }
   })
-  
+
   observeEvent(input$link_choose_repo, {
     # Change the following line for more examples
     showModal(
@@ -83,24 +83,24 @@ function(input, output, session) {
       )
     )
   })
-  
+
   observeEvent(input$actionButton_selectRepo, {
     values$selected_repo = as.list(values$config$repo %>% filter(name == input$selectInput_repo) %>% head(n=1))
     shinyjs::html("element_repo_name", paste0('Selected repository: ', values$selected_repo$name))
     shinyjs::html("element_repo_manifest", paste0('manifest file: ', values$selected_repo$manifest_file))
     removeModal()
   })
-  
+
   #' helper function for app
   #'
   #' @return checks for mount
   #' @export verify_sshfs_mount
   verify_sshfs_mount <- function(watcher_dir) {
     ### Note: this will updated in the next version. There should no longer be a dependency on juno mount.
-    if (!grepl(":/juno ", paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
+    if (!grepl("phoenix-h1.mskcc.org", paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
         grepl("No such file", paste(system(paste0("ls ", watcher_dir, " 2>&1"), intern=TRUE), collapse=" "))) {
       shinyjs::showElement(id= "wellPanel_mountFail")
-      showModal(modalDialog( title = "/juno mount not detected", "Re-mount and try again" ))
+      showModal(modalDialog( title = "/phoenix mount not detected", "Re-mount and try again" ))
       return (FALSE)
     }
 
@@ -118,9 +118,9 @@ function(input, output, session) {
     review_df <- get_review_status(selected_sample, selected_sample_path)
     if ( dim(review_df)[1] > 0) {
       gicon <- function(x) as.character(icon(x, lib = "glyphicon"))
-      
+
       output$datatable_fitReviews <- DT::renderDataTable({
-        DT::datatable(facets_runs %>% 
+        DT::datatable(facets_runs %>%
                         mutate(facets_qc = ifelse(facets_qc, gicon('ok'), gicon('remove'))) %>%
                         mutate(is_best_fit = ifelse(is_best_fit, gicon('thumbs-up'), '')) %>%
                         select(fit_name, facets_qc, facets_qc_version, manual_review_best_fit = is_best_fit) %>%
@@ -131,7 +131,7 @@ function(input, output, session) {
                                      pageLength = 100, dom='t'),
                       rownames=FALSE, escape = F)
       })
-      
+
       output$datatable_reviewHistory <- DT::renderDataTable({
         DT::datatable(review_df %>%
                         filter(review_status != 'not_reviewed') %>%
@@ -144,8 +144,8 @@ function(input, output, session) {
                                reviewed_by, date_reviewed, use_only_purity_run, use_edited_cncf,
                                reviewer_set_purity),
                       selection=list(mode='single'),
-                      colnames = c('Fit', 'Review Status', 'facets QC', 'facets QC ver.', 'Notes', 
-                                   'Reviewer', 'Date Reviewed', 'Use purity run only?',  
+                      colnames = c('Fit', 'Review Status', 'facets QC', 'facets QC ver.', 'Notes',
+                                   'Reviewer', 'Date Reviewed', 'Use purity run only?',
                                    'Use edited.cncf.txt?', 'Reviewer set purity:'),
                       options = list(columnDefs = list(list(className = 'dt-center', targets = 0:6)),
                                      pageLength = 100, dom = 't'),
@@ -153,9 +153,9 @@ function(input, output, session) {
       })
     }
   }
-  
+
   shinyjs::hideElement("button_saveChanges")
-  
+
   observeEvent(input$button_mountFailRefresh, {
     verify_sshfs_mount(values$config$watcher_dir)
     return(NULL)
@@ -166,7 +166,7 @@ function(input, output, session) {
      if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
      selected_sample = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,1]), collapse="")
      dmp_id = (values$manifest_metadata %>% filter(sample_id == selected_sample))$dmp_id[1]
-     
+
      if (!is.na(dmp_id)) {
        browseURL(paste0('https://cbioportal.mskcc.org/patient?studyId=mskimpact&caseId=', dmp_id))
        updateTabsetPanel(session, "reviewTabsetPanel", selected = "png_image_tabset")
@@ -182,41 +182,41 @@ function(input, output, session) {
 
   observeEvent(input$button_repoSamplesInput, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
-    
+
     if (is.null(values$selected_repo)) {
-      showModal(modalDialog(title = "Failed", 
+      showModal(modalDialog(title = "Failed",
                             paste0("No facets repository selected. Please choose one.")
       ))
       return(NULL)
     }
-    
+
     # make sure the sample input string is the right format
     tumor_ids <- gsub(' |\\s|\\t', '', input$textAreaInput_repoSamplesInput)
 
     if (!grepl(values$selected_repo$sample_name_format, tumor_ids)) {
-      showModal(modalDialog(title = "Incorrect format!", 
+      showModal(modalDialog(title = "Incorrect format!",
                             paste0("Tumor Sample IDs are in incorrect format. ",
                                    "Expecting one or more (comma-separated) IDs")
                             ))
       return(NULL)
     }
     values$loaded_time = Sys.time()
-    
+
     tumor_ids <- unlist(strsplit(tumor_ids, ","))
-    
+
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
-    
+
     progress <- shiny::Progress$new()
     on.exit(progress$close())
     progress$set(message = "Reading Samples:", value = 0)
-    
+
     values$manifest_metadata <- load_repo_samples(tumor_ids, values$selected_repo$manifest_file, progress)
-    
+
     num_samples_queried = length(tumor_ids)
     num_samples_found = nrow(values$manifest_metadata)
     if (num_samples_queried != num_samples_found) {
-      showModal(modalDialog(title = "Warning!", 
-                            paste0("Note: Only ", num_samples_found, " of the ", num_samples_queried, 
+      showModal(modalDialog(title = "Warning!",
+                            paste0("Note: Only ", num_samples_found, " of the ", num_samples_queried,
                                    " Tumor IDs queried are found in the respository.")
       ))
       if (num_samples_found == 0) {
@@ -230,9 +230,9 @@ function(input, output, session) {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
 
     values$selected_repo = NULL
-    
+
     values$loaded_time = Sys.time()
-    
+
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_samplesManifest")
 
     progress <- shiny::Progress$new()
@@ -250,19 +250,19 @@ function(input, output, session) {
     if (is.null(values$manifest_metadata) || nrow(values$manifest_metadata) == 0) {
       return(NULL)
     }
-    
+
     gicon <- function(x) as.character(icon(x, lib = "glyphicon"))
     DT::datatable(values$manifest_metadata %>%
                     dplyr::select(-path, -facets_suite_version, -facets_qc_version) %>%
                     mutate(default_fit_qc = ifelse(default_fit_qc, gicon('ok'), gicon('remove'))) %>%
-                    mutate(reviewed_fit_facets_qc = 
+                    mutate(reviewed_fit_facets_qc =
                              ifelse(review_status == 'Not reviewed', '',
                                     ifelse(reviewed_fit_facets_qc, gicon('ok'), gicon('remove')))) %>%
                     mutate(reviewed_fit_use_purity = ifelse(reviewed_fit_use_purity, gicon('ok-sign'), '')) %>%
                     mutate(reviewed_fit_use_edited_cncf = ifelse(reviewed_fit_use_edited_cncf, gicon('ok-sign'), '')),
                   selection=list(mode='single', selected=values$dt_sel),
-                  colnames = c('Sample ID (tag)', '# fits', 'Default Fit', 'Default Fit QC', 
-                               'Review Status', 'Reviewed Fit', 'Reviewed Fit QC', 'purity run only?', 
+                  colnames = c('Sample ID (tag)', '# fits', 'Default Fit', 'Default Fit QC',
+                               'Review Status', 'Reviewed Fit', 'Reviewed Fit QC', 'purity run only?',
                                'edited.cncf.txt?', 'Reviewer purity', 'Date Reviewed'),
                   options = list(pageLength = 20, columnDefs = list(list(className = 'dt-center', targets = 0:9))),
                   rownames=FALSE, escape = F)
@@ -274,30 +274,30 @@ function(input, output, session) {
       paste0('facets_mapping_file_', gsub(' |-|:', '_', Sys.time()), '.txt')
     },
     content = function(file) {
-      
+
       elapsed_time = as.integer(difftime(Sys.time(), values$loaded_time, units = 'secs'))
       showModal(modalDialog( title = "Warning!",
-                             paste0(elapsed_time, 
+                             paste0(elapsed_time,
                              " seconds have elapsed since reviews were loaded. To ensure capturing most recent reviews, ",
                              " load samples again from 'Load Samples' page")))
-      
+
       write.table(values$manifest_metadata %>%
-                  rowwise %>% 
-                  dplyr::mutate(has_reviewed_fit = 
-                           ifelse(review_status %in% c('reviewed_acceptable_fit','reviewed_best_fit'), 
+                  rowwise %>%
+                  dplyr::mutate(has_reviewed_fit =
+                           ifelse(review_status %in% c('reviewed_acceptable_fit','reviewed_best_fit'),
                                   T, F)) %>%
-                  dplyr::mutate(run_type = ifelse(has_reviewed_fit & as.logical(reviewed_fit_use_purity), 
+                  dplyr::mutate(run_type = ifelse(has_reviewed_fit & as.logical(reviewed_fit_use_purity),
                                                   'purity', 'hisens')) %>%
-                  dplyr::mutate(fit_to_use = ifelse(has_reviewed_fit, 
+                  dplyr::mutate(fit_to_use = ifelse(has_reviewed_fit,
                                                     reviewed_fit_name, default_fit_name)) %>%
                   dplyr::mutate(cncf_file = paste0(path, '/', fit_to_use, '/', sample_id, '_', run_type, '.cncf',
-                                                   ifelse(reviewed_fit_use_edited_cncf, 
+                                                   ifelse(reviewed_fit_use_edited_cncf,
                                                           '.edited.txt', '.txt'))) %>%
-                  select(-fit_to_use, -run_type, -has_reviewed_fit), 
+                  select(-fit_to_use, -run_type, -has_reviewed_fit),
                 file, row.names = F, quote=F, sep='\t')
     }
   )
-  
+
   observeEvent(input$datatable_samples_rows_selected, {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     selected_sample = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,1]), collapse="")
@@ -309,7 +309,7 @@ function(input, output, session) {
                              "Path to this sample may be incorrect. " ))
       return(NULL)  # print some kind of error and exit;
     }
-  
+
     updateNavbarPage(session, "navbarPage1", selected = "tabPanel_reviewFits")
     updateTabsetPanel(session, "reviewTabsetPanel", selected = "png_image_tabset")
     progress <- shiny::Progress$new()
@@ -321,37 +321,37 @@ function(input, output, session) {
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
 
     if ( is.null(values$sample_runs) || dim(values$sample_runs)[1] == 0) {
-      showModal(modalDialog( title = "Unable to read sample", "Either no runs exist for this sample, or, /juno mount failed." ))
+      showModal(modalDialog( title = "Unable to read sample", "Either no runs exist for this sample, or, /phoenix mount failed." ))
       return(NULL)  # print some kind of error and exit;
     }
 
     # update with review status
     refresh_review_status(selected_sample, selected_sample_path, values$sample_runs)
-    
+
     ## get best fit if exists; other-wise default
     selected_run = values$sample_runs %>% filter(fit_name=='default') %>% head(n=1)
-    
+
     if (nrow(values$sample_runs %>% filter(is_best_fit)) == 1) {
       selected_run = values$sample_runs %>% filter(is_best_fit) %>% head(n=1)
     } else {
       default_fit = (values$manifest_metadata %>% filter(sample_id == selected_sample))$default_fit_name
       selected_run = values$sample_runs %>% filter(fit_name==default_fit) %>% head(n=1)
-    } 
+    }
 
-    ## hack around reactive to toggle to selected_run$fit_name 
+    ## hack around reactive to toggle to selected_run$fit_name
     values$show_fit = ifelse(nrow(selected_run) == 0, 'Not selected', selected_run$fit_name)
-    
+
     ## bind to drop-down
     updateSelectInput(session, "selectInput_selectFit",
                       choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
-                      selected = ifelse (input$selectInput_selectFit == 'Not selected' & values$show_fit != 'Not selected', 
+                      selected = ifelse (input$selectInput_selectFit == 'Not selected' & values$show_fit != 'Not selected',
                                          values$show_fit, 'Not selected')
     )
     updateSelectInput(session, "selectInput_selectBestFit",
                       choices = as.list(c("Not selected", unlist(values$sample_runs$fit_name))),
                       selected = "Not selected"
     )
-    
+
     if (nrow(selected_run) > 0) {
       updateTextInput(session, "textInput_newDipLogR", label = NULL, value = "")
       updateTextInput(session, "textInput_newPurityCval", label = NULL, value = selected_run$purity_run_cval)
@@ -380,7 +380,7 @@ function(input, output, session) {
                 eol = '')
     close(clip)
   })
-  
+
   observeEvent(input$link_advancedOptions, {
     shinyjs::toggleElement(id='wellPanel_advancedOptions')
   })
@@ -389,7 +389,7 @@ function(input, output, session) {
     if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
     output$verbatimTextOutput_runParams <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
-    
+
     if ( input$selectInput_selectFit == 'Not selected') {
       if (!is.null(values$show_fit) && values$show_fit != '') {
         updateSelectInput(session, "selectInput_selectFit",
@@ -400,7 +400,7 @@ function(input, output, session) {
       }
       return (NULL)
     }
-    
+
     # update other text options
     selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
     if ( selected_run$is_best_fit[1]) {
@@ -408,36 +408,36 @@ function(input, output, session) {
     } else {
       shinyjs::hideElement(id="div_bestFitTrophy")
     }
-    
-    output$verbatimTextOutput_name_of_qc_fit <- renderText({ 
+
+    output$verbatimTextOutput_name_of_qc_fit <- renderText({
       paste0(selected_run$fit_name)
     })
-    
+
     output$datatable_QC_flags <- DT::renderDataTable({
-      filter_columns = c("homdel_filter", "diploid_seg_filter", "waterfall_filter", 
-                         "hyper_seg_filter", "high_ploidy_filter", "valid_purity_filter", 
-                         "em_cncf_icn_discord_filter", "dipLogR_too_low_filter", 
+      filter_columns = c("homdel_filter", "diploid_seg_filter", "waterfall_filter",
+                         "hyper_seg_filter", "high_ploidy_filter", "valid_purity_filter",
+                         "em_cncf_icn_discord_filter", "dipLogR_too_low_filter",
                          "icn_allelic_state_concordance_filter", "subclonal_genome_filter", "contamination_filter")
-      filter_names = c("Homozygous deletions", "Diploid segments (in dipLogR)", "No Waterfall pattern", 
-                       "No hyper segmentation", "Not high ploidy", "Has valid purity", 
-                       "em vs. cncf TCN/LCN discordance", "dipLogR not too low", 
+      filter_names = c("Homozygous deletions", "Diploid segments (in dipLogR)", "No Waterfall pattern",
+                       "No hyper segmentation", "Not high ploidy", "Has valid purity",
+                       "em vs. cncf TCN/LCN discordance", "dipLogR not too low",
                        "ICN is discordant with allelic state ", "High % subclonal","contamination check")
-      
-      df <- data.frame(filter_name = filter_names, 
+
+      df <- data.frame(filter_name = filter_names,
                        passed = unlist(selected_run[, paste0(filter_columns, '_pass')], use.names = F),
                        note = unlist(selected_run[, paste0(filter_columns, '_note')], use.names = F))
       gicon <- function(x) as.character(icon(x, lib = "glyphicon"))
       DT::datatable(df %>%
-                      mutate(passed = ifelse(passed, gicon('ok'), gicon('remove'))), 
+                      mutate(passed = ifelse(passed, gicon('ok'), gicon('remove'))),
                     selection=list(mode='single'),
                     options = list(columnDefs = list(list(className = 'dt-center', targets=0:2)),
                                    pageLength = 50, dom = 't', rownames= FALSE),
-                    colnames = c("Filter" , "Passed?", "Note"), 
+                    colnames = c("Filter" , "Passed?", "Note"),
                     escape=F)
     })
-    
+
     output$datatable_QC_metrics <- DT::renderDataTable({
-      DT::datatable(selected_run %>% 
+      DT::datatable(selected_run %>%
                       select(-ends_with("note"),
                              -ends_with("pass")) %>%
                       t,
@@ -445,10 +445,10 @@ function(input, output, session) {
                                    pageLength = 200, dom = 't', rownames= FALSE),
                     colnames = c(""))
     })
-    
-    ## if 'purity' run exists, show it by default; otherwise show the hisens run. 
-    ## The following piece of code is just a hack to fool the reactive environment to trigger showing 
-    ## selected run on the first selection 
+
+    ## if 'purity' run exists, show it by default; otherwise show the hisens run.
+    ## The following piece of code is just a hack to fool the reactive environment to trigger showing
+    ## selected run on the first selection
     values$show_fit_type = ifelse(!is.na(selected_run$purity_run_version[1]), 'Purity', 'Hisens')
 
     if (is.null(input$radioGroupButton_fitType) || input$radioGroupButton_fitType == 'Hisens') {
@@ -459,7 +459,7 @@ function(input, output, session) {
   })
 
   observeEvent(input$button_addReview, {
-    selected_run <- values$sample_runs[1,] 
+    selected_run <- values$sample_runs[1,]
     sample = selected_run$tumor_sample_id[1]
     path = selected_run$path[1]
     facets_qc = as.character(selected_run$facets_qc[1])
@@ -473,7 +473,7 @@ function(input, output, session) {
     use_only_purity_run = input$checkbox_purity_only[1]
     use_edited_cncf = input$checkbox_use_edited_cncf[1]
     reviewer_set_purity = input$textInput_purity[1]
-    
+
     ### make sure the edited cncf file exists
     if (use_edited_cncf) {
       if (use_only_purity_run) {
@@ -492,7 +492,7 @@ function(input, output, session) {
     }
 
     df <- get_review_status(sample, path)
-    
+
     if (nrow(df) > 0){
       ## check if the sample has been recently reviewed (in the past 1hr)
       cur_time = Sys.time()
@@ -531,18 +531,18 @@ function(input, output, session) {
     if (input$selectInput_selectFit == "Not selected") {
       return(NULL)
     }
-    
+
     if (values$show_fit_type != "" & input$radioGroupButton_fitType != values$show_fit_type) {
       shinyWidgets::updateRadioGroupButtons(session, "radioGroupButton_fitType", selected=values$show_fit_type)
       return(NULL)
     }
     values$show_fit_type = ""
-    
+
     output$verbatimTextOutput_runParams <- renderText({})
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
-    
+
     selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
-    
+
     shinyjs::hideElement("button_saveChanges")
     output$verbatimTextOutput_runParams <- renderText({
       if (input$radioGroupButton_fitType == "Hisens") {
@@ -558,7 +558,7 @@ function(input, output, session) {
                "alt dipLogR: ", selected_run$purity_run_alBalLogR[1])
       }
     })
-    
+
     output$datatable_cncf <- DT::renderDataTable({
       cncf_data <-
         get_cncf_table(input$radioGroupButton_fitType, selected_run)
@@ -608,7 +608,7 @@ function(input, output, session) {
       list(src = png_filename, contentType = 'image/png', width = 650, height = 800)
     },
     deleteFile = FALSE)
-    
+
     output$plotOutput_closeup <- renderPlot ({
       list(src="", width=0, height=0)
     })
@@ -648,7 +648,7 @@ function(input, output, session) {
       output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
       return(NULL)
     }
-    
+
     selected_run <-
       values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
 
@@ -688,10 +688,10 @@ function(input, output, session) {
       ))
       return(NULL)
     }
-    
+
     # Enforce required values for all parameters.
-    if (input$textInput_newPurityCval == "" || input$textInput_newHisensCval == "" || 
-        input$textInput_newPurityMinNHet == "" || input$textInput_newHisensMinNHet == "" || 
+    if (input$textInput_newPurityCval == "" || input$textInput_newHisensCval == "" ||
+        input$textInput_newPurityMinNHet == "" || input$textInput_newHisensMinNHet == "" ||
         input$textInput_newNormalDepth == "" || input$textInput_newSnpWindowSize == "" ||
         input$selectInput_newFacetsLib == "" || input$textInput_newDipLogR == "") {
       showModal(modalDialog(
@@ -699,16 +699,16 @@ function(input, output, session) {
       ))
       return(NULL)
     }
-    
+
     sample_id = values$sample_runs$tumor_sample_id[1]
-    
+
     ## get best fit if exists; other-wise default
     selected_run = values$sample_runs %>% filter(fit_name=='default') %>% head(n=1)
-    
+
     if (nrow(selected_run) == 0) {
       selected_run <- values$sample_runs[which(values$sample_runs$fit_name == paste0(input$selectInput_selectFit)),]
-    } 
-    
+    }
+
     run_path = selected_run$path[1]
     new_purity_c = input$textInput_newPurityCval
     new_hisens_c = input$textInput_newHisensCval
@@ -718,26 +718,26 @@ function(input, output, session) {
     new_snp_window_size = input$textInput_newSnpWindowSize
     new_facets_lib = input$selectInput_newFacetsLib
     new_diplogR = input$textInput_newDipLogR
-    
+
     default_run_facets_version = selected_run$hisens_run_version[1]
     if(is.na(default_run_facets_version)) {
       default_run_facets_version = selected_run$purity_run_version[1]
     }
-    
+
     facets_version_to_use = new_facets_lib
     if (grepl('use current', new_facets_lib)) {
       facets_version_to_use = default_run_facets_version
     }
-    
+
     supported_facets_versions = values$config$facets_lib %>% data.table
-    if (!(facets_version_to_use %in% supported_facets_versions$version)) {
-      showModal(modalDialog(
-        title="Not submitted", 
-        paste0("Current version of facets-preview does not support refits using facets version: ", facets_version_to_use)
-      ))
-      return(NULL)
-    }
-    
+#    if (!(facets_version_to_use %in% supported_facets_versions$version)) {
+##      showModal(modalDialog(
+#        title="Not submitted",
+#        paste0("Current version of facets-preview does not support refits using facets version: ", facets_version_to_use)
+#      ))
+#      return(NULL)
+#    }
+
     name_tag = (paste0("c{new_hisens_c}_pc{new_purity_c}_diplogR_{new_diplogR}",
                        ifelse(new_purity_m != selected_run$purity_run_nhet, '_pm{new_purity_m}', ''),
                        ifelse(new_hisens_m != selected_run$hisens_run_nhet, '_m{new_hisens_m}', ''),
@@ -757,26 +757,31 @@ function(input, output, session) {
       ))
       return(NULL)
     }
-    
-    refit_dir <- paste0(run_path, refit_name)
-    facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
-    
-    counts_file_name = glue("{run_path}/countsMerged____{sample_id}.dat.gz")
-    
+
+    counts_file_name = glue("{run_path}/countsMerged__{sample_id}__PoolNormal.snp_pileup.gz")
+
     if (!is.null(values$selected_repo)) {
       counts_file_name = glue(paste0("{run_path}/",values$selected_repo$counts_file_format))
     }
-    
+
     if (!file.exists(counts_file_name)) {
       showModal(modalDialog(
         title = "Not submitted", paste0("Counts file does not exist: ", counts_file_name)
       ))
       return(NULL)
     }
-    
-    refit_cmd = glue(paste0('/opt/common/CentOS_7-dev/bin/Rscript  ',
+
+    run_path = gsub("\\/phoenix","", run_path)
+    counts_file_name = gsub("\\/phoenix","", counts_file_name)
+
+    refit_dir <- paste0(run_path, refit_name)
+    #facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
+    facets_lib_path = "/home/ptashkir/anaconda2/envs/heme_paper/lib/R/library/"
+
+    refit_cmd = glue(paste0('/home/ptashkir/anaconda2/envs/heme_paper/bin/Rscript ',
                            '{values$config$facets_suite_run_wrapper} ',
-                           '--facets-lib-path {facets_lib_path} ', 
+                           #'--facets-lib-path {facets_lib_path} ',
+                           '--facets2n-lib-path {facets_lib_path} ',
                            '--counts-file {counts_file_name} ',
                            '--sample-id {sample_id} ',
                            '--snp-window-size {new_snp_window_size} ',
@@ -785,11 +790,14 @@ function(input, output, session) {
                            '--min-nhet {new_hisens_m} ',
                            '--purity-min-nhet {new_purity_m} ',
                            '--seed 100 ',
-                           '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output T -e ',
+                           '--reference-snp-pileup {values$config$reference_pileup} ',
+                           '--reference-loess-file {values$config$reference_loess} ',
+                           '--MandUnormal ',
+                           '--cval {new_hisens_c} --purity-cval {new_purity_c} --legacy-output -e ',
                            '--genome hg19 --directory {refit_dir} '))
 
     write(refit_cmd, refit_cmd_file)
-    
+
     showModal(modalDialog(
       title = "Job submitted!", paste0("Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
     ))
