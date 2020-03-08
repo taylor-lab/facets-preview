@@ -214,7 +214,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
                                       purity_run_version = get0("purity_Facetsversion", ifnotfound = NA),
                                       purity_run_prefix = get0("purity_prefix", ifnotfound = NA),
                                       purity_run_Seed = get0("purity_Seed", ifnotfound = NA),
-                                      purity_run_cval = get0("purity_purity_cval", ifnotfound = NA),
+                                      purity_run_cval = get0("hisens_purity_cval", ifnotfound = NA),
                                       purity_run_nhet = get0("purity_min.nhet", ifnotfound = NA),
                                       purity_run_snp_nbhd = get0("purity_snp.nbhd", ifnotfound = NA),
                                       purity_run_ndepth = get0("purity_ndepth", ifnotfound = NA),
