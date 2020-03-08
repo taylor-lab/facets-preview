@@ -291,8 +291,12 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
   facets_runs$is_best_fit[which(facets_runs$fit_name == best_fit)] = T
   
   if (update_qc_file) {
-    write.table(facets_runs %>% select(-ends_with("_filter_note")), 
-                file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
+    if (verify_access_to_write(sample_path)) {
+      write.table(facets_runs %>% select(-ends_with("_filter_note")), 
+                  file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
+    } else {
+      warning('You do not have write permissions to update facets_qc.txt file')
+    }
   }
   
   facets_runs
@@ -372,6 +376,46 @@ get_review_status <- function(sample_id, sample_path) {
 
 #' helper function for app
 #'
+#' @param path  path to verify permissions
+#' @return True/False
+#' @export has_permissions_to_write
+has_permissions_to_write <- function(path) {
+  random_file = paste0(path, as.character(as.numeric(now()) * (1e10 * runif(1,0,1))))
+  has_permission = !system(paste0('touch ', random_file), ignore.stderr = T)
+  if (has_permission) {
+    system(paste0('rm -f ', random_file))
+  }
+  return(has_permission)
+}
+
+#' helper function for app
+#'
+#' @param sample_path  facets run directory containing 'facets_review.manifest'
+#' @return True/False
+#' @export verify_access_to_write
+verify_access_to_write <- function(sample_path) {
+  review_file = paste0(sample_path, '/facets_review.manifest')
+  qc_file = paste0(sample_path, '/facets_qc.txt')
+  
+  can_edit_review = F
+  if (file.exists(review_file)) {
+    can_edit_review = !system(paste0('touch -a -r ', review_file, ' ', review_file), ignore.stderr = T)
+  } else {
+    can_edit_review = has_permissions_to_write(sample_path)
+  }
+  
+  can_edit_qc = F
+  if (file.exists(qc_file)) {
+    can_edit_qc = !system(paste0('touch -c -a -r ', qc_file, ' ', qc_file), ignore.stderr = T)
+  } else {
+    can_edit_qc = has_permissions_to_write(sample_path)
+  }
+  
+  return (can_edit_review & can_edit_qc)
+}
+
+#' helper function for app
+#'
 #' @param sample_path  facets run directory containing 'facets_review.manifest'
 #' @param df dataframe
 #' @return converts string to numeric and rounds to 2-digits
@@ -380,6 +424,12 @@ update_review_status_file <- function(sample_path, df, overwrite=F) {
   if (is.null(df) || dim(df)[1] == 0) {
     return (FALSE)
   }
+  
+  if (!verify_access_to_write(sample_path)) {
+    warning('You do not have write permissions to update review status file')
+    return(FALSE)
+  }
+  
   review_file = paste0(sample_path, "/facets_review.manifest")
   if ( !file.exists(review_file) | overwrite) {
     con = file(review_file)

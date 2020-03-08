@@ -1,6 +1,6 @@
 Package: facetsPreview
 Title: Review and refit FACETS runs
-Version: 2.1.0
+Version: 2.1.1
 Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
 Description: Review and refit FACETS runs
 biocViews: 
@@ -29,7 +29,8 @@ Imports:
     doParallel,
     parallel,
     configr,
-    R.utils
+    R.utils,
+    jsonvalidate
 License: GNU Affero General Public License v3.0
 Encoding: UTF-8
 LazyData: true

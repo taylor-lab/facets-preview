@@ -3,15 +3,13 @@
     {
       "name": "CCS IMPACT facets repository",
       "manifest_file": "/juno/work/ccs/resources/impact/facets/manifests/impact_facets_manifest_latest.txt.gz",
-      "default": "T",
-      "sample_name_format": "^P-\\d{7}-T\\d+-IM\\d(,P-\\d{7}-T\\d+-IM\\d)*$",
+      "tumor_id_format": "^P-\\d{7}-T\\d+-IM\\d(,P-\\d{7}-T\\d+-IM\\d)*$",
       "counts_file_format": "countsMerged____{sample_id}.dat.gz"
     },
     {
       "name": "CB Test Repo",
       "manifest_file": "/juno/work/ccs/bandlamc/other_stuff/facets_qc/facets_sandbox/manifests/impact_facets_qc_2020_02_17b.txt.gz",
-      "default": "F",
-      "sample_name_format": "",
+      "tumor_id_format": "",
       "counts_file_format": "countsMerged____{sample_id}.dat.gz"
     }
   ],
@@ -30,6 +28,8 @@
       "lib_path": "/juno/work/ccs/shared/software/R_libs/facets/0.6.0/"
     }
   ],
+  "verify_sshfs_mount" : "juno",
+  "r_script_path" : "/opt/common/CentOS_7-dev/bin/Rscript",
   "facets_suite_lib": "/juno/work/ccs/shared/software/R_libs/facetsSuite/2.0.4/",
   "facets_suite_run_wrapper": "/juno/work/ccs/shared/software/R_libs/facetsSuite/2.0.4/run-facets-wrapper.R",
   "facets_qc_script": "/juno/work/ccs/bandlamc/git/facets-preview/facets_qc/v1.0/facets_fit_qc.R"

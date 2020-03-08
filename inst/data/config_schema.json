@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "watcher_dir": {
+      "type": "string"
+    },
+    "verify_sshfs_mount": {
+      "type": "string"
+    },
+    "r_script_path": {
+      "type": "string"
+    },
+    "facets_suite_lib": {
+      "type": "string"
+    },
+    "facets_suite_run_wrapper": {
+      "type": "string"
+    },
+    "facets_qc_script": {
+      "type": "string"
+    },    
+    "repo": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/repository" },
+       "minItems": 1
+    },
+    "facets_lib": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/rlib" },
+       "minItems": 1
+    }
+  },
+  "definitions" : {
+    "repository" : {
+      "type" : "object",
+      "required" : ["name", "manifest_file", "counts_file_format"],
+      "properties" : {
+        "name" : {
+          "type": "string"
+        },
+        "manifest_file": {
+          "type": "string"
+        },
+        "tumor_id_format": {
+          "type": "string"
+        },
+        "counts_file_format": {
+          "type": "string"
+        }
+      }
+    },
+    "rlib" : {
+      "type" : "object",
+      "required" : ["version", "lib_path"],
+      "properties" : {
+        "version" : {
+          "type": "string"
+        },
+        "lib_path": {
+          "type": "string"
+        }
+      }      
+    }
+  },
+  "required": [ "watcher_dir", "verify_sshfs_mount", "r_script_path", "facets_suite_lib", "facets_suite_run_wrapper", "facets_qc_script", "facets_lib", "repo"]
+}

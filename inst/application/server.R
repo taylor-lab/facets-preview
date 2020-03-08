@@ -25,8 +25,21 @@ function(input, output, session) {
       showModal(modalDialog( title = "config file not found",  
                              'config file not found. Expects \"facets_preview_config_file\" variable in .Rprofile',
                              easyClose = TRUE))
+      return(NULL)
+    }
+
+    json_validation_status = jsonvalidate::json_validate(values$config_file, 
+                                                         system.file("data/config_schema.json", package="facetsPreview"), 
+                                                         verbose=T)
+    if (!json_validation_status) {
+      showModal(modalDialog( title = "config file parsing error",  
+                             'likely missing or incorrectly set parameters in config file. check console for error information',
+                             easyClose = TRUE))
+      print(json_validation_status)
+      stop('Error parsing config file')
       stopApp(1)
     }
+    
     values$config = configr::read.config(values$config_file)
     
     updateSelectInput(session, "selectInput_repo",
@@ -40,14 +53,9 @@ function(input, output, session) {
     shinyjs::html("element_facets_qc_version1", paste0('facets qc version: ', facets_qc_version()))
     shinyjs::html("element_facets_qc_version2", paste0('facets qc version: ', facets_qc_version()))
     
-    # check if /juno is mounted
+    # check if sshfs is mounted
     if (!verify_sshfs_mount(values$config$watcher_dir)) {
       return(NULL)
-    }
-    
-    # TODO: reset to default repo
-    if (nrow(values$config$repo %>% filter(default == "T")) == 1) {
-      values$selected_repo = as.list(values$config$repo %>% filter(default == "T"))
     }
 
     ## check if watcher is running
@@ -96,11 +104,18 @@ function(input, output, session) {
   #' @return checks for mount
   #' @export verify_sshfs_mount
   verify_sshfs_mount <- function(watcher_dir) {
-    ### Note: this will updated in the next version. There should no longer be a dependency on juno mount.
-    if (!grepl(":/juno ", paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
-        grepl("No such file", paste(system(paste0("ls ", watcher_dir, " 2>&1"), intern=TRUE), collapse=" "))) {
+    if (values$config$verify_sshfs_mount == "") {
+      return(TRUE)
+    }
+    fs = paste0("/", values$config$verify_sshfs_mount)
+    
+    if (!grepl(paste0(":", fs, " "), 
+               paste(system("mount 2>&1", intern=TRUE), collapse=" ")) |
+        grepl("No such file", 
+              paste(system(paste0("ls ", watcher_dir, " 2>&1"), intern=TRUE), collapse=" "))) {
       shinyjs::showElement(id= "wellPanel_mountFail")
-      showModal(modalDialog( title = "/juno mount not detected", "Re-mount and try again" ))
+      showModal(modalDialog( title = paste0(fs, " mount not detected"), "Re-mount and try again" ))
+      stopApp(1)
       return (FALSE)
     }
 
@@ -193,7 +208,7 @@ function(input, output, session) {
     # make sure the sample input string is the right format
     tumor_ids <- gsub(' |\\s|\\t', '', input$textAreaInput_repoSamplesInput)
 
-    if (!grepl(values$selected_repo$sample_name_format, tumor_ids)) {
+    if (!grepl(values$selected_repo$tumor_id_format, tumor_ids)) {
       showModal(modalDialog(title = "Incorrect format!", 
                             paste0("Tumor Sample IDs are in incorrect format. ",
                                    "Expecting one or more (comma-separated) IDs")
@@ -321,7 +336,7 @@ function(input, output, session) {
     output$imageOutput_pngImage1 <- renderImage({ list(src="", width=0, height=0)})
 
     if ( is.null(values$sample_runs) || dim(values$sample_runs)[1] == 0) {
-      showModal(modalDialog( title = "Unable to read sample", "Either no runs exist for this sample, or, /juno mount failed." ))
+      showModal(modalDialog( title = "Unable to read sample", "Either no runs exist for this sample, or, 'sshfs' mount failed." ))
       return(NULL)  # print some kind of error and exit;
     }
 
@@ -459,6 +474,14 @@ function(input, output, session) {
   })
 
   observeEvent(input$button_addReview, {
+    if (!verify_access_to_write(sample_path)) {
+      showModal(modalDialog(
+        title = "Failed to add review", 
+        paste0("You do not have permissions to create/edit: ", sample_path, "/facets_review.manifest")
+      ))
+      return(NULL)
+    }
+    
     selected_run <- values$sample_runs[1,] 
     sample = selected_run$tumor_sample_id[1]
     path = selected_run$path[1]
@@ -693,11 +716,31 @@ function(input, output, session) {
     if (input$textInput_newPurityCval == "" || input$textInput_newHisensCval == "" || 
         input$textInput_newPurityMinNHet == "" || input$textInput_newHisensMinNHet == "" || 
         input$textInput_newNormalDepth == "" || input$textInput_newSnpWindowSize == "" ||
-        input$selectInput_newFacetsLib == "" || input$textInput_newDipLogR == "") {
+        input$selectInput_newFacetsLib == "") {
       showModal(modalDialog(
-        title = "Cannot submit refit", paste0("All parameters are required.")
+        title = "Cannot submit refit", "All refit parameters are required."
       ))
       return(NULL)
+    }
+
+    # make sure all the parameters are numeric
+    if (!suppressWarnings(all(!is.na(as.numeric(c(input$textInput_newPurityCval, 
+                                                 input$textInput_newHisensCval, 
+                                                 input$textInput_newPurityMinNHet, 
+                                                 input$textInput_newHisensMinNHet, 
+                                                 input$textInput_newNormalDepth, 
+                                                 input$textInput_newSnpWindowSize)))))) {
+      showModal(modalDialog(
+        title = "Cannot submit refit", paste0("Non-numeric characters are found in re-fit parameters")
+      ))
+      return(NULL)
+    }
+    
+    with_dipLogR = T
+    refit_note = ""
+    if (input$textInput_newDipLogR == "") {
+      with_dipLogR = F
+      refit_note = "Refit job is submitted without a dipLogR and therefore will be determined by purity run."
     }
     
     sample_id = values$sample_runs$tumor_sample_id[1]
@@ -738,7 +781,8 @@ function(input, output, session) {
       return(NULL)
     }
     
-    name_tag = (paste0("c{new_hisens_c}_pc{new_purity_c}_diplogR_{new_diplogR}",
+    name_tag = (paste0("c{new_hisens_c}_pc{new_purity_c}",
+                       ifelse(with_dipLogR, '_diplogR_{new_diplogR}', ''),
                        ifelse(new_purity_m != selected_run$purity_run_nhet, '_pm{new_purity_m}', ''),
                        ifelse(new_hisens_m != selected_run$hisens_run_nhet, '_m{new_hisens_m}', ''),
                        ifelse(new_normal_depth != selected_run$purity_run_ndepth, '_nd{new_normal_depth}', ''),
@@ -774,14 +818,23 @@ function(input, output, session) {
       return(NULL)
     }
     
-    refit_cmd = glue(paste0('/opt/common/CentOS_7-dev/bin/Rscript  ',
+    ## check if the user has permissions to write to that directory
+    if (!has_permissions_to_write(refit_dir)) {
+      showModal(modalDialog(
+        title = "Not submitted",
+        paste0("Unable to create refit directory. Check if you have permissions to write to: ", refit_dir)
+      ))
+      return(NULL)
+    }
+    
+    refit_cmd = glue(paste0('{values$config$r_script_path}  ',
                            '{values$config$facets_suite_run_wrapper} ',
                            '--facets-lib-path {facets_lib_path} ', 
                            '--counts-file {counts_file_name} ',
                            '--sample-id {sample_id} ',
                            '--snp-window-size {new_snp_window_size} ',
                            '--normal-depth {new_normal_depth} ',
-                           '--dipLogR {new_diplogR} ',
+                           ifelse(with_dipLogR, '--dipLogR {new_diplogR} ', ''),
                            '--min-nhet {new_hisens_m} ',
                            '--purity-min-nhet {new_purity_m} ',
                            '--seed 100 ',
@@ -791,7 +844,9 @@ function(input, output, session) {
     write(refit_cmd, refit_cmd_file)
     
     showModal(modalDialog(
-      title = "Job submitted!", paste0("Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
+      title = "Job submitted!", 
+      paste0(ifelse(refit_note != '', paste('Warning: ', refit_note, '\n\n'), ''),
+             "Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
     ))
     values$submitted_refit <- c(values$submitted_refit, refit_name)
   })
