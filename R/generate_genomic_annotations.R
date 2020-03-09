@@ -18,6 +18,17 @@ generate_genomic_annotations = function(sample_id, sample_path, config_file, reg
   if (!file.exists(config_file)) {
     stop("invalid config file provided to generate_genomic_annotations")
   }
+
+  ### NOTE: Removing json validation because installing 'jsonvalidate' on juno is a nightmare. 
+  ### Need to figure out an alternative or somehow install it.  
+  # json_validation_status = jsonvalidate::json_validate(values$config_file, 
+  #                                                      system.file("data/config_schema.json", package="facetsPreview"), 
+  #                                                      verbose=T)
+  # if (!json_validation_status) {
+  #   print(json_validation_status)
+  #   stop('Error parsing config file')
+  # }
+  
   config = configr::read.config(config_file)
   source(config$facets_qc_script)
   library(facetsSuite, lib.loc = config$facets_suite_lib)

@@ -28,17 +28,19 @@ function(input, output, session) {
       return(NULL)
     }
 
-    json_validation_status = jsonvalidate::json_validate(values$config_file, 
-                                                         system.file("data/config_schema.json", package="facetsPreview"), 
-                                                         verbose=T)
-    if (!json_validation_status) {
-      showModal(modalDialog( title = "config file parsing error",  
-                             'likely missing or incorrectly set parameters in config file. check console for error information',
-                             easyClose = TRUE))
-      print(json_validation_status)
-      stop('Error parsing config file')
-      stopApp(1)
-    }
+    ### NOTE: Removing json validation because installing 'jsonvalidate' on juno is a nightmare. 
+    ### Need to figure out an alternative or somehow install it.
+    # json_validation_status = jsonvalidate::json_validate(values$config_file, 
+    #                                                      system.file("data/config_schema.json", package="facetsPreview"), 
+    #                                                      verbose=T)
+    # if (!json_validation_status) {
+    #   showModal(modalDialog( title = "config file parsing error",  
+    #                          'likely missing or incorrectly set parameters in config file. check console for error information',
+    #                          easyClose = TRUE))
+    #   print(json_validation_status)
+    #   stop('Error parsing config file')
+    #   stopApp(1)
+    # }
     
     values$config = configr::read.config(values$config_file)
     
