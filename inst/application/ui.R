@@ -60,7 +60,7 @@ ui <-
                  wellPanel(
                    h4("Paste facets run directories"),
                    h5("Eg: /juno/work/ccs/bandlamc/facets_review_app/test_data/P-0009137-T01-IM5_P-0009137-N01-IM5"),
-                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="/juno/work/ccs/bandlamc/tmp/P-0019009-T01-IM6_P-0019009-N01-IM6/", rows=4),
+                   textAreaInput("textAreaInput_samplesInput", label=NULL, value="", rows=4),
                    actionButton("button_samplesInput", "Retrieve Sample(s)", class = "btn-primary")
                  ),
                  width = 12
