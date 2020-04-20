@@ -366,6 +366,8 @@ get_review_status <- function(sample_id, sample_path) {
     
     if ('facets_suite_qc' %in% names(reviews)) { reviews <- reviews %>% rename(facets_qc = facets_suite_qc)}
     
+    if(!('facets_qc' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_qc = NA)}
+    
     if (!('facets_qc_version' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_qc_version = 'unknown') }
     
     if (!('facets_suite_version' %in% names(reviews))) { reviews <- reviews %>% mutate(facets_suite_version = 'unknown') }
