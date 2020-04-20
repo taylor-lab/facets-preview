@@ -22,7 +22,7 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
     parallelize = T
   }
   
-  if (!("fit_to_use" %in% cols(samples_to_annotate))) {
+  if (!("fit_to_use" %in% colnames(samples_to_annotate))) {
     samples_to_annotate$fit_to_use = NA
   }
   
