@@ -183,8 +183,8 @@ function(input, output, session) {
      if (!verify_sshfs_mount(values$config$watcher_dir)) { return (NULL) }
      selected_sample = paste(unlist(values$manifest_metadata[input$datatable_samples_rows_selected,1]), collapse="")
      dmp_id = (values$manifest_metadata %>% filter(sample_id == selected_sample))$dmp_id[1]
-     
-     if (!is.na(dmp_id)) {
+
+     if (!is.null(dmp_id) && !is.na(dmp_id)) {
        browseURL(paste0('https://cbioportal.mskcc.org/patient?studyId=mskimpact&caseId=', dmp_id))
        updateTabsetPanel(session, "reviewTabsetPanel", selected = "png_image_tabset")
      } else if (grepl('P\\-\\d{7}.*', selected_sample)) {
@@ -499,6 +499,14 @@ function(input, output, session) {
     use_edited_cncf = input$checkbox_use_edited_cncf[1]
     reviewer_set_purity = input$textInput_purity[1]
     
+    ### reset review stauts fields
+    #updateSelectInput(session, 'selectInput_selectBestFit', choices=c("Not selected"))
+    updateCheckboxInput(session, 'checkbox_purity_only', value = F)
+    updateCheckboxInput(session, 'checkbox_use_edited_cncf', value = F)
+    updateRadioButtons(session, 'radioButtons_reviewStatus', selected='not_reviewed')
+    updateTextInput(session, 'textInput_purity', value='')
+    updateTextAreaInput(session, 'textAreaInput_reviewNote', value='')
+    
     ### make sure the edited cncf file exists
     if (use_edited_cncf) {
       if (use_only_purity_run) {
@@ -546,6 +554,8 @@ function(input, output, session) {
       stringsAsFactors=FALSE
     )
     update_review_status_file(path, df)
+    
+    update_best_fit_status(sample, path)
 
     refresh_review_status(sample, path, values$sample_runs)
   })

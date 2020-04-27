@@ -277,6 +277,8 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
   
   if (update_qc_file) {
     update_review_status_file(sample_path, reviews, T)
+    
+    update_best_fit_status(sample_id, sample_path)
   }
 
   ### determine if the sample has at least an acceptable_fit; get the most recent review 
@@ -374,6 +376,31 @@ get_review_status <- function(sample_id, sample_path) {
   }
   
   return (reviews %>% arrange(desc(date_reviewed)))
+}
+
+update_best_fit_status <- function(sample_id, sample_path) {
+
+  reviews <-
+    get_review_status(sample_id, sample_path) %>% 
+    filter(!(fit_name == 'Not selected'))
+  
+  ### determine if the sample has at least an acceptable_fit; get the most recent review 
+  ### and determine if the status is 'reviewed_best_fit' or 'reviewed_acceptable_fit'
+  best_fit = (reviews %>% 
+                arrange(desc(date_reviewed)) %>%
+                filter(review_status %in% c('reviewed_acceptable_fit', 
+                                            'reviewed_best_fit')))$fit_name[1]
+  
+  facets_runs <- fread(paste0(sample_path, '/facets_qc.txt'))
+  facets_runs$is_best_fit = F
+  facets_runs$is_best_fit[which(facets_runs$fit_name == best_fit)] = T
+  
+  if (verify_access_to_write(sample_path)) {
+    write.table(facets_runs %>% select(-ends_with("_filter_note")), 
+                file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
+  } else {
+    warning('You do not have write permissions to update facets_qc.txt file')
+  }
 }
 
 #' helper function for app
