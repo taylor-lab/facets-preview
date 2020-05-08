@@ -6,7 +6,7 @@ INOTIFY_SH="$WATCHER_DIR/bin/refit_watcher_inotify_cmd.sh"
 
 rm -f $INOTIFY_SH
 
-nohup sh -c 'sleep 4; touch $WATCHER_DIR/refit_jobs/facets_refit_cmd_watcher_poll.sh' 2> /dev/null > /dev/null &
+nohup sh -c "sleep 4; touch $WATCHER_DIR/refit_jobs/facets_refit_cmd_watcher_poll.sh" 2> /dev/null > /dev/null &
 
 echo "
 $WATCHER_DIR/bin/inotifywait --format '%w%f' --include 'facets_refit_cmd_.*sh\$' -m -e close_write $WATCHER_DIR/refit_jobs/ | \
@@ -15,7 +15,7 @@ $WATCHER_DIR/bin/inotifywait --format '%w%f' --include 'facets_refit_cmd_.*sh\$'
     CUR_TIME=\`date +\"%Y-%m-%d %T\"\`
     if [[ \"\$FILE\" =~ \"facets_refit_cmd_watcher_poll.sh\" ]]; then
         echo \$CUR_TIME inotify is running
-        nohup bash -c 'sleep 59; touch \$WATCHER_DIR/refit_jobs/facets_refit_cmd_watcher_poll.sh' &
+        nohup bash -c 'sleep 59; touch $WATCHER_DIR/refit_jobs/facets_refit_cmd_watcher_poll.sh' &
     else
         echo \$CUR_TIME Running: \$FILE
         bash \$FILE > \$FILE.log 2> \$FILE.err &
