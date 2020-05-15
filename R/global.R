@@ -275,12 +275,6 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
             filter(!(fit_name == 'Not selected' | facets_qc_version == facets_qc_version())),
           reviews)
   
-  if (update_qc_file) {
-    update_review_status_file(sample_path, reviews, T)
-    
-    update_best_fit_status(sample_id, sample_path)
-  }
-
   ### determine if the sample has at least an acceptable_fit; get the most recent review 
   ### and determine if the status is 'reviewed_best_fit' or 'reviewed_acceptable_fit'
   best_fit = (reviews %>% 
@@ -301,6 +295,11 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
     }
   }
   
+  if (update_qc_file) {
+    update_review_status_file(sample_path, reviews, T)
+    
+    update_best_fit_status(sample_id, sample_path)
+  }
   facets_runs
 }
 
