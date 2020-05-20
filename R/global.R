@@ -291,7 +291,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
       write.table(facets_runs %>% select(-ends_with("_filter_note")), 
                   file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
     } else {
-      warning('You do not have write permissions to update facets_qc.txt file')
+      warning(paste0('You do not have write permissions to update ', sample_path, '/facets_qc.txt file'))
     }
   }
   
@@ -398,7 +398,7 @@ update_best_fit_status <- function(sample_id, sample_path) {
     write.table(facets_runs %>% select(-ends_with("_filter_note")), 
                 file=paste0(sample_path, '/facets_qc.txt'), quote=F, row.names=F, sep='\t')
   } else {
-    warning('You do not have write permissions to update facets_qc.txt file')
+    warning(paste0('You do not have write permissions to update ', sample_path, '/facets_qc.txt file'))
   }
 }
 

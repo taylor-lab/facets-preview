@@ -476,17 +476,18 @@ function(input, output, session) {
   })
 
   observeEvent(input$button_addReview, {
-    if (!verify_access_to_write(sample_path)) {
+    selected_run <- values$sample_runs[1,] 
+    sample = selected_run$tumor_sample_id[1]
+    path = selected_run$path[1]
+    
+    if (!verify_access_to_write(path)) {
       showModal(modalDialog(
         title = "Failed to add review", 
-        paste0("You do not have permissions to create/edit: ", sample_path, "/facets_review.manifest")
+        paste0("You do not have permissions to create/edit: ", path, "/facets_review.manifest")
       ))
       return(NULL)
     }
     
-    selected_run <- values$sample_runs[1,] 
-    sample = selected_run$tumor_sample_id[1]
-    path = selected_run$path[1]
     facets_qc = as.character(selected_run$facets_qc[1])
     facets_qc_version = as.character(selected_run$facets_qc_version[1])
     facets_suite_version = as.character(selected_run$facets_suite_version[1])
