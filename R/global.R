@@ -377,6 +377,10 @@ get_review_status <- function(sample_id, sample_path) {
   return (reviews %>% arrange(desc(date_reviewed)))
 }
 
+#' @param sample sampleid
+#' @param sample_path facets run directory containing 'facets_review.manifest'
+#' @return converts string to numeric and rounds to 2-digits
+#' @export update_best_fit_status
 update_best_fit_status <- function(sample_id, sample_path) {
 
   reviews <-
