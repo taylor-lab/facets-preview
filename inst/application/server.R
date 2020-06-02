@@ -510,12 +510,9 @@ function(input, output, session) {
     
     ### make sure the edited cncf file exists
     if (use_edited_cncf) {
-      if (use_only_purity_run) {
-        run_prefix = selected_run$purity_run_prefix[1]
-      } else {
-        run_prefix = selected_run$hisens_run_prefix[1]
-      }
-      cncf_filename = paste0(run_prefix, ".cncf.edited.txt")
+      cncf_filename = paste0(path, fit_name, '/', sample, '_', 
+                             ifelse(use_only_purity_run, 'purity', 'hisens'),
+                             '.cncf.edited.txt')
       if (!file.exists(cncf_filename)) {
         showModal(modalDialog(
           title = "Failed", paste0("Review not added. CNCF file assigned to this review does not exist. ",
@@ -808,17 +805,16 @@ function(input, output, session) {
     cmd_script_pfx = paste0(values$config$watcher_dir, "/refit_jobs/facets_refit_cmd_")
     refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_{name_tag}.sh")
 
-    if (any(values$submitted_refit == refit_name)) {
+    refit_dir <- paste0(run_path, refit_name)
+    facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
+    counts_file_name = glue("{run_path}/countsMerged____{sample_id}.dat.gz")
+    
+    if (any(values$submitted_refit == refit_dir)) {
       showModal(modalDialog(
         title = "Not submitted", paste0("Job already queued. Check logs: ", refit_cmd_file, ".*")
       ))
       return(NULL)
     }
-    
-    refit_dir <- paste0(run_path, refit_name)
-    facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
-    
-    counts_file_name = glue("{run_path}/countsMerged____{sample_id}.dat.gz")
     
     if (!is.null(values$selected_repo)) {
       counts_file_name = glue(paste0("{run_path}/",values$selected_repo$counts_file_format))
@@ -861,6 +857,6 @@ function(input, output, session) {
       paste0(ifelse(refit_note != '', paste('Warning: ', refit_note, '\n\n'), ''),
              "Check back in a few minutes. Logs: ", refit_cmd_file, ".*")
     ))
-    values$submitted_refit <- c(values$submitted_refit, refit_name)
+    values$submitted_refit <- c(values$submitted_refit, refit_dir)
   })
 }
