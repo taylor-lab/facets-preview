@@ -42,8 +42,9 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
             
             ## read from facets_qc.txt
             qc_file = paste0(sample_path, '/facets_qc.txt')
+            review_file = paste0(sample_path, '/facets_review.manifest')
             
-            if (!file.exists(qc_file)) { return() }
+            if (!file.exists(qc_file)| !file.exists(review_file)) { return() }
             
             qc_runs = fread(qc_file) %>% filter(fit_name != 'Not selected')
             
@@ -57,6 +58,32 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
             } else {
               fit = qc_runs %>% head(n=1)
             }
+            
+            reviews <-
+              fread(review_file) %>%
+              filter(fit_name == fit$fit_name) %>%
+              arrange(desc(date_reviewed)) %>%
+              select(fit_name, review_notes, reviewed_by, date_reviewed, use_only_purity_run, use_edited_cncf, reviewer_set_purity) %>%
+              head(n=1)
+            
+            fit <-
+              fit %>% 
+              left_join(reviews) 
+            
+            ####
+            #### update purity and ploidy based on reviews;
+            ####
+            fit <- 
+              fit %>% 
+              rowwise %>%
+              mutate(purity = ifelse(!is.na(reviewer_set_purity) & reviewer_set_purity != '', 
+                                     reviewer_set_purity,
+                                     ifelse(!is.na(use_only_purity_run) & use_only_purity_run, 
+                                            purity_run_Purity, 
+                                            hisens_run_Purity))) %>%
+              mutate(ploidy = ifelse(!is.na(use_only_purity_run) & use_only_purity_run, 
+                                     purity_run_Ploidy, 
+                                     hisens_run_Ploidy))
             
             return (fit)
           }, .parallel = parallelize)

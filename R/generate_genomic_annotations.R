@@ -106,8 +106,14 @@ generate_genomic_annotations = function(sample_id, sample_path, config_file, reg
     write.table(qc, paste0(prefix, '.qc.txt'), quote=F, row.names=F, sep='\t')
 
     # Write gene level // use hisensitivity run
-    gene_level = facetsSuite::gene_level_changes(hisens_output, 'hg19') %>%
-      add_column(sample = sample_id, .before = 1)
+    
+    if (r$use_only_purity_run) {
+      gene_level = facetsSuite::gene_level_changes(purity_output, 'hg19', 'em')
+    } else {
+      gene_level = facetsSuite::gene_level_changes(hisens_output, 'hg19', 'em')
+    }
+    gene_level = gene_level %>% add_column(sample = sample_id, .before = 1)
+    
     write.table(gene_level, paste0(prefix, '.gene_level.txt'), quote=F, row.names=F, sep='\t')
 
     # Write arm level // use purity run

@@ -231,6 +231,7 @@ metadata_init <- function(sample_id, sample_path, progress = NULL, update_qc_fil
                                       hisens_run_snp_nbhd = get0("hisens_snp.nbhd", ifnotfound = NA),
                                       hisens_run_ndepth = get0("hisens_ndepth", ifnotfound = NA),
                                       hisens_run_hisens = round_down(get0("hisens_hisens", ifnotfound = NA)),
+                                      hisens_run_Purity = round_down(get0("hisens_Purity", ifnotfound = NA)),
                                       hisens_run_Ploidy = round_down(get0("hisens_Ploidy", ifnotfound = NA)),
                                       hisens_run_dipLogR = round_down(get0("hisens_dipLogR", ifnotfound = NA)),
     
