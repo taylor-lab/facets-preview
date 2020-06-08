@@ -432,14 +432,18 @@ verify_access_to_write <- function(sample_path) {
   
   can_edit_review = F
   if (file.exists(review_file)) {
-    can_edit_review = !system(paste0('touch -a -r ', review_file, ' ', review_file), ignore.stderr = T)
+    #can_edit_review = !system(paste0('touch -a -r ', review_file, ' ', review_file), ignore.stderr = T)
+    can_edit_review = !system(paste0('(mv ', review_file, ' ', review_file, '. ; ', 
+                                     ' mv ', review_file, '. ', review_file, ') 2> /dev/null'), ignore.stderr = T)
   } else {
     can_edit_review = has_permissions_to_write(sample_path)
   }
   
   can_edit_qc = F
   if (file.exists(qc_file)) {
-    can_edit_qc = !system(paste0('touch -c -a -r ', qc_file, ' ', qc_file), ignore.stderr = T)
+    #can_edit_qc = !system(paste0('touch -c -a -r ', qc_file, ' ', qc_file), ignore.stderr = T)
+    can_edit_qc = !system(paste0('(mv ', qc_file, ' ', qc_file, '. ; ', 
+                                 ' mv ', qc_file, '. ', qc_file, ') 2> /dev/null'), ignore.stderr = T)
   } else {
     can_edit_qc = has_permissions_to_write(sample_path)
   }

@@ -802,27 +802,35 @@ function(input, output, session) {
 
     name_tag = glue(name_tag)
     refit_name <- glue('/refit_{name_tag}')
+    
     cmd_script_pfx = paste0(values$config$watcher_dir, "/refit_jobs/facets_refit_cmd_")
-    refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_{name_tag}.sh")
-
+    
     refit_dir <- paste0(run_path, refit_name)
     facets_lib_path = supported_facets_versions[version==facets_version_to_use]$lib_path
+  
     counts_file_name = glue("{run_path}/countsMerged____{sample_id}.dat.gz")
-    
-    if (any(values$submitted_refit == refit_dir)) {
-      showModal(modalDialog(
-        title = "Not submitted", paste0("Job already queued. Check logs: ", refit_cmd_file, ".*")
-      ))
-      return(NULL)
-    }
-    
     if (!is.null(values$selected_repo)) {
       counts_file_name = glue(paste0("{run_path}/",values$selected_repo$counts_file_format))
     }
     
     if (!file.exists(counts_file_name)) {
+      # try alternate counts file; tempo format; eg: SU2LC_MSK_1365_T__SU2LC_MSK_1365_N.snp_pileup.gz
+      if (file.exists(glue("{run_path}/{sample_id}.snp_pileup.gz"))) {
+        counts_file_name = glue("{run_path}/{sample_id}.snp_pileup.gz")
+      } else {
+        showModal(modalDialog( title = "Not submitted", paste0("Counts file does not exist: ", counts_file_name) ))
+        return(NULL)
+      }
+    }
+    
+    refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_{name_tag}.sh")
+    if (file.size(counts_file_name) > 5e7) {
+      refit_cmd_file <- glue("{cmd_script_pfx}{sample_id}_{name_tag}.bsub.sh")  
+    }
+    
+    if (any(values$submitted_refit == refit_dir)) {
       showModal(modalDialog(
-        title = "Not submitted", paste0("Counts file does not exist: ", counts_file_name)
+        title = "Not submitted", paste0("Job already queued. Check logs: ", refit_cmd_file, ".*")
       ))
       return(NULL)
     }

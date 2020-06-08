@@ -4,8 +4,6 @@ WATCHER_DIR="/juno/work/ccs/shared/software/refit_watcher/"
 
 INOTIFY_SH="$WATCHER_DIR/bin/refit_watcher_inotify_cmd.sh"
 
-rm -f $INOTIFY_SH
-
 nohup sh -c "sleep 4; touch $WATCHER_DIR/refit_jobs/facets_refit_cmd_watcher_poll.sh" 2> /dev/null > /dev/null &
 
 echo "
@@ -16,6 +14,10 @@ $WATCHER_DIR/bin/inotifywait --format '%w%f' --include 'facets_refit_cmd_.*sh\$'
     if [[ \"\$FILE\" =~ \"facets_refit_cmd_watcher_poll.sh\" ]]; then
         echo \$CUR_TIME inotify is running
         nohup bash -c 'sleep 59; touch $WATCHER_DIR/refit_jobs/facets_refit_cmd_watcher_poll.sh' &
+    elif [[ \"\$FILE\" =~ \"bsub.sh\" ]]; then
+        echo \$CUR_TIME Running: \$FILE
+        bsub -We 1:59 -n 4 -R \"rusage[mem=16]\" -o \$FILE.log -e \$FILE.err bash \$FILE
+        echo \$CUR_TIME Finished: \$FILE
     else
         echo \$CUR_TIME Running: \$FILE
         bash \$FILE > \$FILE.log 2> \$FILE.err &
