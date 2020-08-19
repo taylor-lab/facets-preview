@@ -71,8 +71,10 @@ function(input, output, session) {
       
       cur_time = as.numeric(system(" date +%s ", intern=TRUE))
       if (Sys.info()['sysname'] == "Linux" ) { 
-	      last_mod = as.numeric(system(paste0("stat -c %Y ", values$config$watcher_dir, "/watcher.log"), intern=TRUE)) 
-      } else { last_mod = as.numeric(system(paste0("stat -f%c ", values$config$watcher_dir, "/watcher.log"), intern=TRUE)) }
+	last_mod = as.numeric(system(paste0("stat -c %Y ", values$config$watcher_dir, "/watcher.log"), intern=TRUE)) 
+      } else { 
+	last_mod = as.numeric(system(paste0("stat -f%c ", values$config$watcher_dir, "/watcher.log"), intern=TRUE)) 
+      }
       
       if ( cur_time - last_mod < 900) {
         values$watcher_status = T
