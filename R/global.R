@@ -570,8 +570,8 @@ launch_application <- function() {
 #'
 #' @return launches app
 #' @export launch_application_browser
-launch_application_browser <- function( launchBrowser = TRUE ) {
-  shiny::runApp(appDir = system.file("application", package = "facetsPreview"), launch.browser = launchBrowser)
+launch_application_browser <- function() {
+  shiny::runApp(appDir = system.file("application", package = "facetsPreview"), launch.browser = TRUE)
 }
 
 require(bit64)
