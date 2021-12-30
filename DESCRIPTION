@@ -1,6 +1,6 @@
 Package: facetsPreview
 Title: Review and refit FACETS runs
-Version: 2.1.4
+Version: 2.1.6
 Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
 Description: Review and refit FACETS runs
 biocViews: 

@@ -139,35 +139,55 @@ generate_genomic_annotations = function(sample_id, sample_path, config_file, reg
     }
 
     sample_maf_file = paste0(sample_path, '/', sample_id, '.maf')
-
+    sample_maf_nonsignedout_file = paste0(sample_path, '/', sample_id, '.nonsignedout.maf')
+    
     if (!file.exists(cncf_txt_file)) {
       warning(paste0('cncf file does not exist: ', cncf_txt_file, '! Skipping ccf-annotation for: ', r$sample_id))
       return()
     }
-    if (!file.exists(sample_maf_file)) {
-      warning(paste0('MAF file does not exist: ', sample_maf_file, '! Skipping ccf-annotation for: ', r$sample_id))
-      return()
+    
+    if (file.exists(sample_maf_file)) {
+      maf = fread(sample_maf_file) %>% data.table
+
+      if(nrow(maf) == 0) {
+        warning(paste0('No mutations for sample: ', sample_id))
+      } else {
+        ccf_maf = facetsSuite::ccf_annotate_maf_legacy(maf,
+                                                       cncf_txt_file,
+                                                       purity,
+                                                       algorithm='em')
+        ccf_maf$facets_fit = paste0(r$path, '/', r$fit_name)
+        ccf_maf$facets_suite_qc = r$facets_suite_qc
+        ccf_maf$reviewer_set_purity = r$reviewer_set_purity
+        ccf_maf$use_only_purity_run = r$use_only_purity_run
+        ccf_maf$use_edited_cncf = r$use_edited_cncf
+        ccf_maf$cncf_file_used = cncf_txt_file
+        
+        write.table(ccf_maf, file=paste0(sample_path, '/', r$fit_name, '/', sample_id, '.ccf.maf'), quote=F, row.names=F, sep='\t')
+      }
+    }
+    
+    if (file.exists(sample_maf_nonsignedout_file)) {
+      maf_nonsignedout = fread(sample_maf_nonsignedout_file) %>% data.table
+      
+      if(nrow(maf_nonsignedout) == 0) {
+        warning(paste0('No mutations for sample: ', sample_id))
+      } else {
+        ccf_maf_nonsignedout = facetsSuite::ccf_annotate_maf_legacy(maf_nonsignedout,
+                                                       cncf_txt_file,
+                                                       purity,
+                                                       algorithm='em')
+        ccf_maf_nonsignedout$facets_fit = paste0(r$path, '/', r$fit_name)
+        ccf_maf_nonsignedout$facets_suite_qc = r$facets_suite_qc
+        ccf_maf_nonsignedout$reviewer_set_purity = r$reviewer_set_purity
+        ccf_maf_nonsignedout$use_only_purity_run = r$use_only_purity_run
+        ccf_maf_nonsignedout$use_edited_cncf = r$use_edited_cncf
+        ccf_maf_nonsignedout$cncf_file_used = cncf_txt_file
+        
+        write.table(ccf_maf_nonsignedout, file=paste0(sample_path, '/', r$fit_name, '/', sample_id, '.nonsignedout.ccf.maf'), quote=F, row.names=F, sep='\t')
+      }
     }
 
-    maf = fread(sample_maf_file) %>% data.table
-
-    if(nrow(maf) == 0) {
-      warning(paste0('No mutations for sample: ', sample_id))
-      return()
-    }
-
-    ccf_maf = facetsSuite::ccf_annotate_maf_legacy(fread(sample_maf_file) %>% data.table,
-                                                   cncf_txt_file,
-                                                   purity,
-                                                   algorithm='em')
-    ccf_maf$facets_fit = paste0(r$path, '/', r$fit_name)
-    ccf_maf$facets_suite_qc = r$facets_suite_qc
-    ccf_maf$reviewer_set_purity = r$reviewer_set_purity
-    ccf_maf$use_only_purity_run = r$use_only_purity_run
-    ccf_maf$use_edited_cncf = r$use_edited_cncf
-    ccf_maf$cncf_file_used = cncf_txt_file
-
-    write.table(ccf_maf, file=paste0(sample_path, '/', r$fit_name, '/', sample_id, '.ccf.maf'), quote=F, row.names=F, sep='\t')
     
   }, .parallel = F)
 }

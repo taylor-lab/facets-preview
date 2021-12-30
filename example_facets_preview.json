@@ -30,7 +30,7 @@
   ],
   "verify_sshfs_mount" : "juno",
   "r_script_path" : "/opt/common/CentOS_7-dev/bin/Rscript",
-  "facets_suite_lib": "/juno/work/ccs/shared/software/R_libs/facetsSuite/2.0.6/",
+  "facets_suite_lib": "/juno/work/ccs/shared/software/R_libs/facetsSuite/2.0.8/",
   "facets_suite_run_wrapper": "/juno/work/ccs/shared/software/R_libs/facetsSuite/2.0.6/run-facets-wrapper.R",
   "facets_qc_script": "/juno/work/ccs/bandlamc/git/facets-preview/facets_qc/v1.0/facets_fit_qc.R"
 }

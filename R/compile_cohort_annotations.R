@@ -63,7 +63,7 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
               fread(review_file) %>%
               filter(fit_name == fit$fit_name) %>%
               arrange(desc(date_reviewed)) %>%
-              select(fit_name, review_notes, reviewed_by, date_reviewed, use_only_purity_run, use_edited_cncf, reviewer_set_purity) %>%
+              select(review_status, fit_name, review_notes, reviewed_by, date_reviewed, use_only_purity_run, use_edited_cncf, reviewer_set_purity) %>%
               head(n=1)
             
             fit <-
@@ -92,12 +92,21 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
   samples_annotated <-
     samples_annotated %>%
     rowwise %>%
-    mutate(arm_level_file = paste0(sample_path, '/', fit_name, '/', sample_id, '.arm_level.txt'),
-           gene_level_file = paste0(sample_path, '/', fit_name, '/', sample_id, '.gene_level.txt'),
-           ccf_file = paste0(sample_path, '/', fit_name, '/', sample_id, '.ccf.maf')) %>%
+    mutate(pfx = paste0(sample_path, '/', fit_name, '/', sample_id)) %>% 
+    mutate(arm_level_file = paste0(pfx, '.arm_level.txt'),
+           gene_level_file = paste0(pfx, '.gene_level.txt'),
+           ccf_file = paste0(pfx, '.ccf.maf'),
+           ccf_nonsignedout_file = paste0(pfx, '.nonsignedout.ccf.maf'),
+           cncf_file = ifelse(!is.na(use_only_purity_run) & use_only_purity_run,
+                              paste0(pfx, '_purity.cncf.txt'), paste0(pfx, '_hisens.cncf.txt')),
+           seg_file = ifelse(!is.na(use_only_purity_run) & use_only_purity_run,
+                              paste0(pfx, '_purity.seg'), paste0(pfx, '_hisens.seg'))) %>%
     mutate(arm_level_file_exists = file.exists(arm_level_file),
            gene_level_file_exists = file.exists(gene_level_file),
-           ccf_file_exists = file.exists(ccf_file))
+           ccf_file_exists = file.exists(ccf_file),
+           ccf_nonsignedout_file_exists = file.exists(ccf_nonsignedout_file),
+           cncf_file_exists = file.exists(cncf_file),
+           seg_file_exists = file.exists(seg_file))
   
   write.table(samples_annotated, file=paste0(output_prefix, '.cohort.txt'), quote=F, row.names=F, sep='\t')
   cl <- makeCluster(ncores)
@@ -109,6 +118,14 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
                                   USE.NAMES=F), 
                         fill = T)
   write.table(ccf_calls, file=paste0(output_prefix, '.ccf.maf'), quote=F, row.names=F, sep='\t')
+  
+  ccf_nonsignedout_calls = rbindlist(parSapply(cl,
+                                  (samples_annotated %>% filter(ccf_nonsignedout_file_exists))$ccf_nonsignedout_file,
+                                  fread, 
+                                  simplify = F, 
+                                  USE.NAMES=F),  
+                        fill = T)
+  write.table(ccf_nonsignedout_calls, file=paste0(output_prefix, '.nonsignedout.ccf.maf'), quote=F, row.names=F, sep='\t')
   
   arm_level_calls = rbindlist(parSapply(cl,
                                         (samples_annotated %>% filter(arm_level_file_exists))$arm_level_file,
@@ -125,6 +142,22 @@ compile_cohort_annotations <- function(samples_to_annotate, output_prefix, ncore
                                         USE.NAMES=F), 
                               fill = T)
   write.table(gene_level_calls, file=paste0(output_prefix, '.gene_level.txt'), quote=F, row.names=F, sep='\t')
+  
+  seg_calls = rbindlist(parSapply(cl,
+                                  (samples_annotated %>% filter(seg_file_exists))$seg_file,
+                                  fread, 
+                                  simplify = F, 
+                                  USE.NAMES=F), 
+                        fill = T)
+  write.table(seg_calls, file=paste0(output_prefix, '.seg'), quote=F, row.names=F, sep='\t')
+  
+  cncf_calls = rbindlist(parSapply(cl,
+                                  (samples_annotated %>% filter(cncf_file_exists))$cncf_file,
+                                  fread, 
+                                  simplify = F, 
+                                  USE.NAMES=F), 
+                        fill = T)
+  write.table(cncf_calls, file=paste0(output_prefix, '.cncf.txt'), quote=F, row.names=F, sep='\t')
   
   
   return (samples_annotated)
